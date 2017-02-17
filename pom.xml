@@ -55,12 +55,12 @@
     <distributionManagement>
         <repository>
             <id>bstats-releases</id>
-            <url>>https://repo.bstats.org/content/repositories/releases/</url>
+            <url>https://repo.bstats.org/content/repositories/releases/</url>
         </repository>
         <snapshotRepository>
             <id>bstats-snapshots</id>
             <url>https://repo.bstats.org/content/repositories/snapshots</url>
         </snapshotRepository>
     </distributionManagement>
-    
+
 </project>
