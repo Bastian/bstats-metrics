@@ -192,7 +192,7 @@ public class Metrics {
         int playerAmount;
         try {
             // around MC 1.8 the return type was changed to a collection from an array,
-            // this keeps errors along the line of Server::getOnlinePlayers method not found
+            // this fixes java.lang.NoSuchMethodError: org.bukkit.Bukkit.getOnlinePlayers()Ljava/util/Collection;
             Method onlinePlayersMethod = Class.forName("org.bukkit.server").getMethod("getOnlinePlayers");
             playerAmount = onlinePlayersMethod.getReturnType().equals(Collection.class)
                     ? ((Collection<?>) onlinePlayersMethod.invoke(Bukkit.getServer())).size()
