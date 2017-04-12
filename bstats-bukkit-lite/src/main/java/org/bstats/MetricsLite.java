@@ -2,6 +2,7 @@ package org.bstats;
 
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -220,13 +221,15 @@ public class MetricsLite {
         for (Class<?> service : Bukkit.getServicesManager().getKnownServices()) {
             try {
                 service.getField("B_STATS_VERSION"); // Our identifier :)
+
+                for (RegisteredServiceProvider<?> provider : Bukkit.getServicesManager().getRegistrations(service)) {
+                    try {
+                        pluginData.add(provider.getService().getMethod("getPluginData").invoke(provider.getProvider()));
+                    } catch (NullPointerException | NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {
+                    }
+                }
             } catch (NoSuchFieldException ignored) {
-                continue; // Continue "searching"
             }
-            // Found one!
-            try {
-                pluginData.add(service.getMethod("getPluginData").invoke(Bukkit.getServicesManager().load(service)));
-            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) { }
         }
 
         data.put("plugins", pluginData);
