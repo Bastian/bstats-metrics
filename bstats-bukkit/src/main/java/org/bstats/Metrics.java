@@ -1,7 +1,9 @@
 package org.bstats;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Server;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.json.simple.JSONArray;
@@ -13,8 +15,10 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -188,15 +192,35 @@ public class Metrics {
     }
 
     /**
+     * Gets the online players (backwards compatibility)
+     * Based on https://github.com/Hidendra/Plugin-Metrics/blob/master/mods/bukkit/metrics/src/main/java/org/mcstats/Metrics.java#L329-L349
+     * 
+     * @return online player amount
+     */
+    private int getOnlinePlayers() {
+        try {
+            Method onlinePlayerMethod = Server.class.getMethod("getOnlinePlayers");
+            if(onlinePlayerMethod.getReturnType().equals(Collection.class)) {
+                return ((Collection<?>) onlinePlayerMethod.invoke(Bukkit.getServer())).size();
+            } else {
+                return ((Player[]) onlinePlayerMethod.invoke(Bukkit.getServer())).length;
+            }
+        } catch (Exception ex) {
+            Bukkit.getLogger().log(Level.WARNING, "Failed to get the online players:" + ex.getMessage());
+        }
+        return 0;
+    }
+
+    /**
      * Gets the server specific data.
      *
      * @return The server specific data.
      */
     private JSONObject getServerData() {
         // Minecraft specific data
-        int playerAmount = Bukkit.getOnlinePlayers().size();
+        int playerAmount = getOnlinePlayers();
         int onlineMode = Bukkit.getOnlineMode() ? 1 : 0;
-        String bukkitVersion = org.bukkit.Bukkit.getVersion();
+        String bukkitVersion = Bukkit.getVersion();
         bukkitVersion = bukkitVersion.substring(bukkitVersion.indexOf("MC: ") + 4, bukkitVersion.length() - 1);
 
         // OS/Java specific data
