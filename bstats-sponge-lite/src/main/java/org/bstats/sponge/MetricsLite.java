@@ -1,4 +1,4 @@
-package org.bstats;
+package org.bstats.sponge;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -7,6 +7,7 @@ import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
+import org.spongepowered.api.Platform;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.config.ConfigDir;
 import org.spongepowered.api.plugin.PluginContainer;
@@ -40,12 +41,16 @@ import java.util.zip.GZIPOutputStream;
 public class MetricsLite {
 
     static {
-        // Maven's Relocate is clever and changes strings, too. So we have to use this little "trick" ... :D
-        final String defaultPackage = new String(new byte[] { 'o', 'r', 'g', '.', 'b', 's', 't', 'a', 't', 's' });
-        final String examplePackage = new String(new byte[] { 'y', 'o', 'u', 'r', '.', 'p', 'a', 'c', 'k', 'a', 'g', 'e' });
-        // We want to make sure nobody just copy & pastes the example and use the wrong package names
-        if (MetricsLite.class.getPackage().getName().equals(defaultPackage) || MetricsLite.class.getPackage().getName().equals(examplePackage)) {
-            throw new IllegalStateException("bStats Metrics class has not been relocated correctly!");
+        // You can use the property to disable the check in your test environment
+        if (System.getProperty("bstats.relocatecheck") == null || !System.getProperty("bstats.relocatecheck").equals("false")) {
+            // Maven's Relocate is clever and changes strings, too. So we have to use this little "trick" ... :D
+            final String defaultPackage = new String(
+                    new byte[]{'o', 'r', 'g', '.', 'b', 's', 't', 'a', 't', 's', '.', 's', 'p', 'o', 'n', 'g', 'e'});
+            final String examplePackage = new String(new byte[]{'y', 'o', 'u', 'r', '.', 'p', 'a', 'c', 'k', 'a', 'g', 'e'});
+            // We want to make sure nobody just copy & pastes the example and use the wrong package names
+            if (MetricsLite.class.getPackage().getName().equals(defaultPackage) || MetricsLite.class.getPackage().getName().equals(examplePackage)) {
+                throw new IllegalStateException("bStats Metrics class has not been relocated correctly!");
+            }
         }
     }
 
@@ -193,6 +198,7 @@ public class MetricsLite {
         playerAmount = playerAmount > 200 ? 200 : playerAmount;
         int onlineMode = Sponge.getServer().getOnlineMode() ? 1 : 0;
         String minecraftVersion = Sponge.getGame().getPlatform().getMinecraftVersion().getName();
+        String spongeImplementation = Sponge.getPlatform().getContainer(Platform.Component.IMPLEMENTATION).getName();
 
         // OS/Java specific data
         String javaVersion = System.getProperty("java.version");
@@ -208,6 +214,7 @@ public class MetricsLite {
         data.addProperty("playerAmount", playerAmount);
         data.addProperty("onlineMode", onlineMode);
         data.addProperty("minecraftVersion", minecraftVersion);
+        data.addProperty("spongeImplementation", spongeImplementation);
 
         data.addProperty("javaVersion", javaVersion);
         data.addProperty("osName", osName);

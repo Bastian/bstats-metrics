@@ -1,5 +1,5 @@
 import com.google.inject.Inject;
-import org.bstats.Metrics;
+import org.bstats.sponge.Metrics;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.plugin.Plugin;
@@ -17,12 +17,7 @@ public class ExamplePlugin {
         // Check out https://docs.spongepowered.org/master/en/plugin/injection.html if you don't know what @Inject does
 
         // Optional: Add custom charts
-        metrics.addCustomChart(new Metrics.SimplePie("chart_id") {
-            @Override
-            public String getValue() {
-                return "My value";
-            }
-        });
+        metrics.addCustomChart(new Metrics.SimplePie("chart_id", () -> "My value"));
     }
 
 }

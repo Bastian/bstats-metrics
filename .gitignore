@@ -1,0 +1,13 @@
+# compile output
+target/
+
+# IntelliJ files
+.idea
+*.iml
+out
+gen
+
+# eclipse files
+.settings
+.classpath
+.project

@@ -1,9 +1,8 @@
-package org.bstats;
+package org.bstats.bungeecord;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.md_5.bungee.api.plugin.Plugin;
-import net.md_5.bungee.api.scheduler.TaskScheduler;
 import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
@@ -22,8 +21,6 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -37,12 +34,16 @@ import java.util.zip.GZIPOutputStream;
 public class MetricsLite {
 
     static {
-        // Maven's Relocate is clever and changes strings, too. So we have to use this little "trick" ... :D
-        final String defaultPackage = new String(new byte[] { 'o', 'r', 'g', '.', 'b', 's', 't', 'a', 't', 's' });
-        final String examplePackage = new String(new byte[] { 'y', 'o', 'u', 'r', '.', 'p', 'a', 'c', 'k', 'a', 'g', 'e' });
-        // We want to make sure nobody just copy & pastes the example and use the wrong package names
-        if (MetricsLite.class.getPackage().getName().equals(defaultPackage) || MetricsLite.class.getPackage().getName().equals(examplePackage)) {
-            throw new IllegalStateException("bStats Metrics class has not been relocated correctly!");
+        // You can use the property to disable the check in your test environment
+        if (System.getProperty("bstats.relocatecheck") == null || !System.getProperty("bstats.relocatecheck").equals("false")) {
+            // Maven's Relocate is clever and changes strings, too. So we have to use this little "trick" ... :D
+            final String defaultPackage = new String(
+                    new byte[]{'o', 'r', 'g', '.', 'b', 's', 't', 'a', 't', 's', '.', 'b', 'u', 'n', 'g', 'e', 'e', 'c', 'o', 'r', 'd'});
+            final String examplePackage = new String(new byte[]{'y', 'o', 'u', 'r', '.', 'p', 'a', 'c', 'k', 'a', 'g', 'e'});
+            // We want to make sure nobody just copy & pastes the example and use the wrong package names
+            if (MetricsLite.class.getPackage().getName().equals(defaultPackage) || MetricsLite.class.getPackage().getName().equals(examplePackage)) {
+                throw new IllegalStateException("bStats Metrics class has not been relocated correctly!");
+            }
         }
     }
 
@@ -136,22 +137,14 @@ public class MetricsLite {
     }
 
     private void startSubmitting() {
-        // We use a timer cause want to be independent from the server tps
-        final Timer timer = new Timer(true);
-        timer.scheduleAtFixedRate(new TimerTask() {
+        plugin.getProxy().getScheduler().schedule(plugin, new Runnable() {
             @Override
             public void run() {
-                // The data collection (e.g. for custom graphs) is done sync
-                // Don't be afraid! The connection to the bStats server is still async, only the stats collection is sync ;)
-                TaskScheduler scheduler = plugin.getProxy().getScheduler();
-                scheduler.schedule(plugin, new Runnable() {
-                    @Override
-                    public void run() {
-                        submitData();
-                    }
-                }, 0L, TimeUnit.SECONDS);
+                // The data collection is async, as well as sending the data
+                // Bungeecord does not have a main thread, everything is async
+                submitData();
             }
-        }, 1000*60*2, 1000*60*30);
+        }, 2, 30, TimeUnit.MINUTES);
         // Submit the data every 30 minutes, first time after 2 minutes to give other plugins enough time to start
         // WARNING: Changing the frequency has no effect but your plugin WILL be blocked/deleted!
         // WARNING: Just don't do it!
@@ -214,21 +207,15 @@ public class MetricsLite {
 
         data.add("plugins", pluginData);
 
-        // Create a new thread for the connection to the bStats server
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    // Send the data
-                    sendData(data);
-                } catch (Exception e) {
-                    // Something went wrong! :(
-                    if (logFailedRequests) {
-                        plugin.getLogger().log(Level.WARNING, "Could not submit plugin stats!", e);
-                    }
-                }
+        try {
+            // Send the data
+            sendData(data);
+        } catch (Exception e) {
+            // Something went wrong! :(
+            if (logFailedRequests) {
+                plugin.getLogger().log(Level.WARNING, "Could not submit plugin stats!", e);
             }
-        }).start();
+        }
     }
 
     /**
