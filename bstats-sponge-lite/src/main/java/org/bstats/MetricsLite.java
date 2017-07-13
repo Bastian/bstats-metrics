@@ -196,6 +196,7 @@ public class MetricsLite {
         playerAmount = playerAmount > 200 ? 200 : playerAmount;
         int onlineMode = Sponge.getServer().getOnlineMode() ? 1 : 0;
         String minecraftVersion = Sponge.getGame().getPlatform().getMinecraftVersion().getName();
+        String spongeImplementation = Sponge.getPlatform().getImplementation().getName();
 
         // OS/Java specific data
         String javaVersion = System.getProperty("java.version");
@@ -211,6 +212,7 @@ public class MetricsLite {
         data.addProperty("playerAmount", playerAmount);
         data.addProperty("onlineMode", onlineMode);
         data.addProperty("minecraftVersion", minecraftVersion);
+        data.addProperty("spongeImplementation", spongeImplementation);
 
         data.addProperty("javaVersion", javaVersion);
         data.addProperty("osName", osName);
