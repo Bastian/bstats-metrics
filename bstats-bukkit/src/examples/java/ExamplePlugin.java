@@ -1,4 +1,4 @@
-import org.bstats.Metrics;
+import org.bstats.bukkit.Metrics;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.concurrent.Callable;

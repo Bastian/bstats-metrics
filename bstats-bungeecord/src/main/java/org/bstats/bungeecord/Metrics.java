@@ -1,31 +1,33 @@
-package org.bstats;
+package org.bstats.bungeecord;
 
-import org.bukkit.Bukkit;
-import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.RegisteredServiceProvider;
-import org.bukkit.plugin.ServicePriority;
-import org.bukkit.plugin.java.JavaPlugin;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import net.md_5.bungee.api.plugin.Plugin;
+import net.md_5.bungee.config.Configuration;
+import net.md_5.bungee.config.ConfigurationProvider;
+import net.md_5.bungee.config.YamlConfiguration;
 
 import javax.net.ssl.HttpsURLConnection;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -39,8 +41,9 @@ public class Metrics {
         // You can use the property to disable the check in your test environment
         if (System.getProperty("bstats.relocatecheck") == null || !System.getProperty("bstats.relocatecheck").equals("false")) {
             // Maven's Relocate is clever and changes strings, too. So we have to use this little "trick" ... :D
-            final String defaultPackage = new String(new byte[] { 'o', 'r', 'g', '.', 'b', 's', 't', 'a', 't', 's' });
-            final String examplePackage = new String(new byte[] { 'y', 'o', 'u', 'r', '.', 'p', 'a', 'c', 'k', 'a', 'g', 'e' });
+            final String defaultPackage = new String(
+                    new byte[]{'o', 'r', 'g', '.', 'b', 's', 't', 'a', 't', 's', '.', 'b', 'u', 'n', 'g', 'e', 'e', 'c', 'o', 'r', 'd'});
+            final String examplePackage = new String(new byte[]{'y', 'o', 'u', 'r', '.', 'p', 'a', 'c', 'k', 'a', 'g', 'e'});
             // We want to make sure nobody just copy & pastes the example and use the wrong package names
             if (Metrics.class.getPackage().getName().equals(defaultPackage) || Metrics.class.getPackage().getName().equals(examplePackage)) {
                 throw new IllegalStateException("bStats Metrics class has not been relocated correctly!");
@@ -52,76 +55,59 @@ public class Metrics {
     public static final int B_STATS_VERSION = 1;
 
     // The url to which the data is sent
-    private static final String URL = "https://bStats.org/submitData/bukkit";
-
-    // Should failed requests be logged?
-    private static boolean logFailedRequests;
-
-    // The uuid of the server
-    private static String serverUUID;
+    private static final String URL = "https://bStats.org/submitData/bungeecord";
 
     // The plugin
-    private final JavaPlugin plugin;
+    private final Plugin plugin;
+
+    // Is bStats enabled on this server?
+    private boolean enabled;
+
+    // The uuid of the server
+    private String serverUUID;
+
+    // Should failed requests be logged?
+    private boolean logFailedRequests = false;
+
+    // A list with all known metrics class objects including this one
+    private static final List<Object> knownMetricsInstances = new ArrayList<>();
 
     // A list with all custom charts
     private final List<CustomChart> charts = new ArrayList<>();
 
-    /**
-     * Class constructor.
-     *
-     * @param plugin The plugin which stats should be submitted.
-     */
-    public Metrics(JavaPlugin plugin) {
-        if (plugin == null) {
-            throw new IllegalArgumentException("Plugin cannot be null!");
-        }
+    public Metrics(Plugin plugin) {
         this.plugin = plugin;
 
-        // Get the config file
-        File bStatsFolder = new File(plugin.getDataFolder().getParentFile(), "bStats");
-        File configFile = new File(bStatsFolder, "config.yml");
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(configFile);
-
-        // Check if the config file exists
-        if (!config.isSet("serverUuid")) {
-
-            // Add default values
-            config.addDefault("enabled", true);
-            // Every server gets it's unique random id.
-            config.addDefault("serverUuid", UUID.randomUUID().toString());
-            // Should failed request be logged?
-            config.addDefault("logFailedRequests", false);
-
-            // Inform the server owners about bStats
-            config.options().header(
-                    "bStats collects some data for plugin authors like how many servers are using their plugins.\n" +
-                            "To honor their work, you should not disable it.\n" +
-                            "This has nearly no effect on the server performance!\n" +
-                            "Check out https://bStats.org/ to learn more :)"
-            ).copyDefaults(true);
-            try {
-                config.save(configFile);
-            } catch (IOException ignored) { }
+        try {
+            loadConfig();
+        } catch (IOException e) {
+            // Failed to load configuration
+            plugin.getLogger().log(Level.WARNING, "Failed to load bStats config!", e);
+            return;
         }
 
-        // Load the data
-        serverUUID = config.getString("serverUuid");
-        logFailedRequests = config.getBoolean("logFailedRequests", false);
-        if (config.getBoolean("enabled", true)) {
-            boolean found = false;
-            // Search for all other bStats Metrics classes to see if we are the first one
-            for (Class<?> service : Bukkit.getServicesManager().getKnownServices()) {
-                try {
-                    service.getField("B_STATS_VERSION"); // Our identifier :)
-                    found = true; // We aren't the first
-                    break;
-                } catch (NoSuchFieldException ignored) { }
-            }
-            // Register our service
-            Bukkit.getServicesManager().register(Metrics.class, this, plugin, ServicePriority.Normal);
-            if (!found) {
-                // We are the first!
-                startSubmitting();
+        // We are not allowed to send data about this server :(
+        if (!enabled) {
+            return;
+        }
+
+        Class<?> usedMetricsClass = getFirstBStatsClass();
+        if (usedMetricsClass == null) {
+            // Failed to get first metrics class
+            return;
+        }
+        if (usedMetricsClass == getClass()) {
+            // We are the first! :)
+            linkMetrics(this);
+            startSubmitting();
+        } else {
+            // We aren't the first so we link to the first metrics class
+            try {
+                usedMetricsClass.getMethod("linkMetrics", Object.class).invoke(null,this);
+            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                if (logFailedRequests) {
+                    plugin.getLogger().log(Level.WARNING, "Failed to link to first metrics class " + usedMetricsClass.getName() + "!", e);
+                }
             }
         }
     }
@@ -133,36 +119,19 @@ public class Metrics {
      */
     public void addCustomChart(CustomChart chart) {
         if (chart == null) {
-            throw new IllegalArgumentException("Chart cannot be null!");
+            plugin.getLogger().log(Level.WARNING, "Chart cannot be null");
         }
         charts.add(chart);
     }
 
     /**
-     * Starts the Scheduler which submits our data every 30 minutes.
+     * Links an other metrics class with this class.
+     * This method is called using Reflection.
+     *
+     * @param metrics An object of the metrics class to link.
      */
-    private void startSubmitting() {
-        final Timer timer = new Timer(true); // We use a timer cause the Bukkit scheduler is affected by server lags
-        timer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                if (!plugin.isEnabled()) { // Plugin was disabled
-                    timer.cancel();
-                    return;
-                }
-                // Nevertheless we want our code to run in the Bukkit main thread, so we have to use the Bukkit scheduler
-                // Don't be afraid! The connection to the bStats server is still async, only the stats collection is sync ;)
-                Bukkit.getScheduler().runTask(plugin, new Runnable() {
-                    @Override
-                    public void run() {
-                        submitData();
-                    }
-                });
-            }
-        }, 1000*60*5, 1000*60*30);
-        // Submit the data every 30 minutes, first time after 5 minutes to give other plugins enough time to start
-        // WARNING: Changing the frequency has no effect but your plugin WILL be blocked/deleted!
-        // WARNING: Just don't do it!
+    public static void linkMetrics(Object metrics) {
+        knownMetricsInstances.add(metrics);
     }
 
     /**
@@ -171,26 +140,41 @@ public class Metrics {
      *
      * @return The plugin specific data.
      */
-    public JSONObject getPluginData() {
-        JSONObject data = new JSONObject();
+    public JsonObject getPluginData() {
+        JsonObject data = new JsonObject();
 
         String pluginName = plugin.getDescription().getName();
         String pluginVersion = plugin.getDescription().getVersion();
 
-        data.put("pluginName", pluginName); // Append the name of the plugin
-        data.put("pluginVersion", pluginVersion); // Append the version of the plugin
-        JSONArray customCharts = new JSONArray();
+        data.addProperty("pluginName", pluginName);
+        data.addProperty("pluginVersion", pluginVersion);
+
+        JsonArray customCharts = new JsonArray();
         for (CustomChart customChart : charts) {
             // Add the data of the custom charts
-            JSONObject chart = customChart.getRequestJsonObject();
+            JsonObject chart = customChart.getRequestJsonObject(plugin.getLogger(), logFailedRequests);
             if (chart == null) { // If the chart is null, we skip it
                 continue;
             }
             customCharts.add(chart);
         }
-        data.put("customCharts", customCharts);
+        data.add("customCharts", customCharts);
 
         return data;
+    }
+
+    private void startSubmitting() {
+        plugin.getProxy().getScheduler().schedule(plugin, new Runnable() {
+            @Override
+            public void run() {
+            // The data collection is async, as well as sending the data
+                // Bungeecord does not have a main thread, everything is async
+                submitData();
+            }
+        }, 2, 30, TimeUnit.MINUTES);
+        // Submit the data every 30 minutes, first time after 2 minutes to give other plugins enough time to start
+        // WARNING: Changing the frequency has no effect but your plugin WILL be blocked/deleted!
+        // WARNING: Just don't do it!
     }
 
     /**
@@ -198,22 +182,13 @@ public class Metrics {
      *
      * @return The server specific data.
      */
-    private JSONObject getServerData() {
+    private JsonObject getServerData() {
         // Minecraft specific data
-        int playerAmount;
-        try {
-            // Around MC 1.8 the return type was changed to a collection from an array,
-            // This fixes java.lang.NoSuchMethodError: org.bukkit.Bukkit.getOnlinePlayers()Ljava/util/Collection;
-            Method onlinePlayersMethod = Class.forName("org.bukkit.Server").getMethod("getOnlinePlayers");
-            playerAmount = onlinePlayersMethod.getReturnType().equals(Collection.class)
-                    ? ((Collection<?>) onlinePlayersMethod.invoke(Bukkit.getServer())).size()
-                    : ((Player[]) onlinePlayersMethod.invoke(Bukkit.getServer())).length;
-        } catch (Exception e) {
-            playerAmount = Bukkit.getOnlinePlayers().size(); // Just use the new method if the Reflection failed
-        }
-        int onlineMode = Bukkit.getOnlineMode() ? 1 : 0;
-        String bukkitVersion = org.bukkit.Bukkit.getVersion();
-        bukkitVersion = bukkitVersion.substring(bukkitVersion.indexOf("MC: ") + 4, bukkitVersion.length() - 1);
+        int playerAmount = plugin.getProxy().getOnlineCount();
+        playerAmount = playerAmount > 500 ? 500 : playerAmount;
+        int onlineMode = plugin.getProxy().getConfig().isOnlineMode() ? 1 : 0;
+        String bungeecordVersion = plugin.getProxy().getVersion();
+        int managedServers = plugin.getProxy().getServers().size();
 
         // OS/Java specific data
         String javaVersion = System.getProperty("java.version");
@@ -222,19 +197,20 @@ public class Metrics {
         String osVersion = System.getProperty("os.version");
         int coreCount = Runtime.getRuntime().availableProcessors();
 
-        JSONObject data = new JSONObject();
+        JsonObject data = new JsonObject();
 
-        data.put("serverUUID", serverUUID);
+        data.addProperty("serverUUID", serverUUID);
 
-        data.put("playerAmount", playerAmount);
-        data.put("onlineMode", onlineMode);
-        data.put("bukkitVersion", bukkitVersion);
+        data.addProperty("playerAmount", playerAmount);
+        data.addProperty("managedServers", managedServers);
+        data.addProperty("onlineMode", onlineMode);
+        data.addProperty("bungeecordVersion", bungeecordVersion);
 
-        data.put("javaVersion", javaVersion);
-        data.put("osName", osName);
-        data.put("osArch", osArch);
-        data.put("osVersion", osVersion);
-        data.put("coreCount", coreCount);
+        data.addProperty("javaVersion", javaVersion);
+        data.addProperty("osName", osName);
+        data.addProperty("osArch", osArch);
+        data.addProperty("osVersion", osVersion);
+        data.addProperty("coreCount", coreCount);
 
         return data;
     }
@@ -243,39 +219,127 @@ public class Metrics {
      * Collects the data and sends it afterwards.
      */
     private void submitData() {
-        final JSONObject data = getServerData();
+        final JsonObject data = getServerData();
 
-        JSONArray pluginData = new JSONArray();
+        final JsonArray pluginData = new JsonArray();
         // Search for all other bStats Metrics classes to get their plugin data
-        for (Class<?> service : Bukkit.getServicesManager().getKnownServices()) {
+        for (Object metrics : knownMetricsInstances) {
             try {
-                service.getField("B_STATS_VERSION"); // Our identifier :)
-
-                for (RegisteredServiceProvider<?> provider : Bukkit.getServicesManager().getRegistrations(service)) {
-                    try {
-                        pluginData.add(provider.getService().getMethod("getPluginData").invoke(provider.getProvider()));
-                    } catch (NullPointerException | NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) { }
+                Object plugin = metrics.getClass().getMethod("getPluginData").invoke(metrics);
+                if (plugin instanceof JsonObject) {
+                    pluginData.add((JsonObject) plugin);
                 }
-            } catch (NoSuchFieldException ignored) { }
+            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) { }
         }
 
-        data.put("plugins", pluginData);
+        data.add("plugins", pluginData);
 
-        // Create a new thread for the connection to the bStats server
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    // Send the data
-                    sendData(data);
-                } catch (Exception e) {
-                    // Something went wrong! :(
-                    if (logFailedRequests) {
-                        plugin.getLogger().log(Level.WARNING, "Could not submit plugin stats of " + plugin.getName(), e);
-                    }
-                }
+        try {
+            // Send the data
+            sendData(data);
+        } catch (Exception e) {
+            // Something went wrong! :(
+            if (logFailedRequests) {
+                plugin.getLogger().log(Level.WARNING, "Could not submit plugin stats!", e);
             }
-        }).start();
+        }
+    }
+
+    /**
+     * Loads the bStats configuration.
+     *
+     * @throws IOException If something did not work :(
+     */
+    private void loadConfig() throws IOException {
+        Path configPath = plugin.getDataFolder().toPath().getParent().resolve("bStats");
+        configPath.toFile().mkdirs();
+        File configFile = new File(configPath.toFile(), "config.yml");
+        if (!configFile.exists()) {
+            writeFile(configFile,
+                    "#bStats collects some data for plugin authors like how many servers are using their plugins.",
+                    "#To honor their work, you should not disable it.",
+                    "#This has nearly no effect on the server performance!",
+                    "#Check out https://bStats.org/ to learn more :)",
+                    "enabled: true",
+                    "serverUuid: \"" + UUID.randomUUID().toString() + "\"",
+                    "logFailedRequests: false");
+        }
+
+        Configuration configuration = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
+
+        // Load configuration
+        enabled = configuration.getBoolean("enabled", true);
+        serverUUID = configuration.getString("serverUuid");
+        logFailedRequests = configuration.getBoolean("logFailedRequests", false);
+    }
+
+    /**
+     * Gets the first bStat Metrics class.
+     *
+     * @return The first bStats metrics class.
+     */
+    private Class<?> getFirstBStatsClass() {
+        Path configPath = plugin.getDataFolder().toPath().getParent().resolve("bStats");
+        configPath.toFile().mkdirs();
+        File tempFile = new File(configPath.toFile(), "temp.txt");
+
+        try {
+            String className = readFile(tempFile);
+            if (className != null) {
+                try {
+                    // Let's check if a class with the given name exists.
+                    return Class.forName(className);
+                } catch (ClassNotFoundException ignored) { }
+            }
+            writeFile(tempFile, getClass().getName());
+            return getClass();
+        } catch (IOException e) {
+            if (logFailedRequests) {
+                plugin.getLogger().log(Level.WARNING, "Failed to get first bStats class!", e);
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Reads the first line of the file.
+     *
+     * @param file The file to read. Cannot be null.
+     * @return The first line of the file or <code>null</code> if the file does not exist or is empty.
+     * @throws IOException If something did not work :(
+     */
+    private String readFile(File file) throws IOException {
+        if (!file.exists()) {
+            return null;
+        }
+        try (
+                FileReader fileReader = new FileReader(file);
+                BufferedReader bufferedReader =  new BufferedReader(fileReader);
+        ) {
+            return bufferedReader.readLine();
+        }
+    }
+
+    /**
+     * Writes a String to a file. It also adds a note for the user,
+     *
+     * @param file The file to write to. Cannot be null.
+     * @param lines The lines to write.
+     * @throws IOException If something did not work :(
+     */
+    private void writeFile(File file, String... lines) throws IOException {
+        if (!file.exists()) {
+            file.createNewFile();
+        }
+        try (
+                FileWriter fileWriter = new FileWriter(file);
+                BufferedWriter bufferedWriter = new BufferedWriter(fileWriter)
+        ) {
+            for (String line : lines) {
+                bufferedWriter.write(line);
+                bufferedWriter.newLine();
+            }
+        }
     }
 
     /**
@@ -284,13 +348,11 @@ public class Metrics {
      * @param data The data to send.
      * @throws Exception If the request failed.
      */
-    private static void sendData(JSONObject data) throws Exception {
+    private static void sendData(JsonObject data) throws Exception {
         if (data == null) {
-            throw new IllegalArgumentException("Data cannot be null!");
+            throw new IllegalArgumentException("Data cannot be null");
         }
-        if (Bukkit.isPrimaryThread()) {
-            throw new IllegalAccessException("This method must not be called from the main thread!");
-        }
+
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();
 
         // Compress the data to save bandwidth
@@ -298,11 +360,11 @@ public class Metrics {
 
         // Add headers
         connection.setRequestMethod("POST");
-        connection.addRequestProperty("Accept", "application/json");
+        connection.addRequestProperty("Accept", "application/Json");
         connection.addRequestProperty("Connection", "close");
         connection.addRequestProperty("Content-Encoding", "gzip"); // We gzip our request
         connection.addRequestProperty("Content-Length", String.valueOf(compressedData.length));
-        connection.setRequestProperty("Content-Type", "application/json"); // We send our data in JSON format
+        connection.setRequestProperty("Content-Type", "application/Json"); // We send our data in Json format
         connection.setRequestProperty("User-Agent", "MC-Server/" + B_STATS_VERSION);
 
         // Send data
@@ -333,13 +395,14 @@ public class Metrics {
         return outputStream.toByteArray();
     }
 
+
     /**
      * Represents a custom chart.
      */
     public static abstract class CustomChart {
 
         // The id of the chart
-        final String chartId;
+        private final String chartId;
 
         /**
          * Class constructor.
@@ -353,26 +416,26 @@ public class Metrics {
             this.chartId = chartId;
         }
 
-        private JSONObject getRequestJsonObject() {
-            JSONObject chart = new JSONObject();
-            chart.put("chartId", chartId);
+        private JsonObject getRequestJsonObject(Logger logger, boolean logFailedRequests) {
+            JsonObject chart = new JsonObject();
+            chart.addProperty("chartId", chartId);
             try {
-                JSONObject data = getChartData();
+                JsonObject data = getChartData();
                 if (data == null) {
                     // If the data is null we don't send the chart.
                     return null;
                 }
-                chart.put("data", data);
+                chart.add("data", data);
             } catch (Throwable t) {
                 if (logFailedRequests) {
-                    Bukkit.getLogger().log(Level.WARNING, "Failed to get data for custom chart with id " + chartId, t);
+                    logger.log(Level.WARNING, "Failed to get data for custom chart with id " + chartId, t);
                 }
                 return null;
             }
             return chart;
         }
 
-        protected abstract JSONObject getChartData() throws Exception;
+        protected abstract JsonObject getChartData() throws Exception;
 
     }
 
@@ -395,14 +458,14 @@ public class Metrics {
         }
 
         @Override
-        protected JSONObject getChartData() throws Exception {
-            JSONObject data = new JSONObject();
+        protected JsonObject getChartData() throws Exception {
+            JsonObject data = new JsonObject();
             String value = callable.call();
             if (value == null || value.isEmpty()) {
                 // Null = skip the chart
                 return null;
             }
-            data.put("value", value);
+            data.addProperty("value", value);
             return data;
         }
     }
@@ -426,9 +489,9 @@ public class Metrics {
         }
 
         @Override
-        protected JSONObject getChartData() throws Exception {
-            JSONObject data = new JSONObject();
-            JSONObject values = new JSONObject();
+        protected JsonObject getChartData() throws Exception {
+            JsonObject data = new JsonObject();
+            JsonObject values = new JsonObject();
             Map<String, Integer> map = callable.call();
             if (map == null || map.isEmpty()) {
                 // Null = skip the chart
@@ -440,13 +503,13 @@ public class Metrics {
                     continue; // Skip this invalid
                 }
                 allSkipped = false;
-                values.put(entry.getKey(), entry.getValue());
+                values.addProperty(entry.getKey(), entry.getValue());
             }
             if (allSkipped) {
                 // Null = skip the chart
                 return null;
             }
-            data.put("values", values);
+            data.add("values", values);
             return data;
         }
     }
@@ -470,9 +533,9 @@ public class Metrics {
         }
 
         @Override
-        public JSONObject getChartData() throws Exception {
-            JSONObject data = new JSONObject();
-            JSONObject values = new JSONObject();
+        public JsonObject getChartData() throws Exception {
+            JsonObject data = new JsonObject();
+            JsonObject values = new JsonObject();
             Map<String, Map<String, Integer>> map = callable.call();
             if (map == null || map.isEmpty()) {
                 // Null = skip the chart
@@ -480,22 +543,22 @@ public class Metrics {
             }
             boolean reallyAllSkipped = true;
             for (Map.Entry<String, Map<String, Integer>> entryValues : map.entrySet()) {
-                JSONObject value = new JSONObject();
+                JsonObject value = new JsonObject();
                 boolean allSkipped = true;
                 for (Map.Entry<String, Integer> valueEntry : map.get(entryValues.getKey()).entrySet()) {
-                    value.put(valueEntry.getKey(), valueEntry.getValue());
+                    value.addProperty(valueEntry.getKey(), valueEntry.getValue());
                     allSkipped = false;
                 }
                 if (!allSkipped) {
                     reallyAllSkipped = false;
-                    values.put(entryValues.getKey(), value);
+                    values.add(entryValues.getKey(), value);
                 }
             }
             if (reallyAllSkipped) {
                 // Null = skip the chart
                 return null;
             }
-            data.put("values", values);
+            data.add("values", values);
             return data;
         }
     }
@@ -519,14 +582,14 @@ public class Metrics {
         }
 
         @Override
-        protected JSONObject getChartData() throws Exception {
-            JSONObject data = new JSONObject();
+        protected JsonObject getChartData() throws Exception {
+            JsonObject data = new JsonObject();
             int value = callable.call();
             if (value == 0) {
                 // Null = skip the chart
                 return null;
             }
-            data.put("value", value);
+            data.addProperty("value", value);
             return data;
         }
 
@@ -551,9 +614,9 @@ public class Metrics {
         }
 
         @Override
-        protected JSONObject getChartData() throws Exception {
-            JSONObject data = new JSONObject();
-            JSONObject values = new JSONObject();
+        protected JsonObject getChartData() throws Exception {
+            JsonObject data = new JsonObject();
+            JsonObject values = new JsonObject();
             Map<String, Integer> map = callable.call();
             if (map == null || map.isEmpty()) {
                 // Null = skip the chart
@@ -565,13 +628,13 @@ public class Metrics {
                     continue; // Skip this invalid
                 }
                 allSkipped = false;
-                values.put(entry.getKey(), entry.getValue());
+                values.addProperty(entry.getKey(), entry.getValue());
             }
             if (allSkipped) {
                 // Null = skip the chart
                 return null;
             }
-            data.put("values", values);
+            data.add("values", values);
             return data;
         }
 
@@ -596,20 +659,20 @@ public class Metrics {
         }
 
         @Override
-        protected JSONObject getChartData() throws Exception {
-            JSONObject data = new JSONObject();
-            JSONObject values = new JSONObject();
+        protected JsonObject getChartData() throws Exception {
+            JsonObject data = new JsonObject();
+            JsonObject values = new JsonObject();
             Map<String, Integer> map = callable.call();
             if (map == null || map.isEmpty()) {
                 // Null = skip the chart
                 return null;
             }
             for (Map.Entry<String, Integer> entry : map.entrySet()) {
-                JSONArray categoryValues = new JSONArray();
-                categoryValues.add(entry.getValue());
-                values.put(entry.getKey(), categoryValues);
+                JsonArray categoryValues = new JsonArray();
+                categoryValues.add(new JsonPrimitive(entry.getValue()));
+                values.add(entry.getKey(), categoryValues);
             }
-            data.put("values", values);
+            data.add("values", values);
             return data;
         }
 
@@ -634,9 +697,9 @@ public class Metrics {
         }
 
         @Override
-        protected JSONObject getChartData() throws Exception {
-            JSONObject data = new JSONObject();
-            JSONObject values = new JSONObject();
+        protected JsonObject getChartData() throws Exception {
+            JsonObject data = new JsonObject();
+            JsonObject values = new JsonObject();
             Map<String, int[]> map = callable.call();
             if (map == null || map.isEmpty()) {
                 // Null = skip the chart
@@ -648,19 +711,20 @@ public class Metrics {
                     continue; // Skip this invalid
                 }
                 allSkipped = false;
-                JSONArray categoryValues = new JSONArray();
+                JsonArray categoryValues = new JsonArray();
                 for (int categoryValue : entry.getValue()) {
-                    categoryValues.add(categoryValue);
+                    categoryValues.add(new JsonPrimitive(categoryValue));
                 }
-                values.put(entry.getKey(), categoryValues);
+                values.add(entry.getKey(), categoryValues);
             }
             if (allSkipped) {
                 // Null = skip the chart
                 return null;
             }
-            data.put("values", values);
+            data.add("values", values);
             return data;
         }
 
     }
+
 }

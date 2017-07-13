@@ -1,5 +1,5 @@
 import com.google.inject.Inject;
-import org.bstats.Metrics;
+import org.bstats.sponge.Metrics;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.plugin.Plugin;

@@ -1,7 +1,8 @@
-package org.bstats;
+package org.bstats.sponge;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.google.inject.Inject;
 import ninja.leaping.configurate.commented.CommentedConfigurationNode;
 import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
@@ -28,9 +29,11 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -38,16 +41,17 @@ import java.util.zip.GZIPOutputStream;
  *
  * Check out https://bStats.org/ to learn more about bStats!
  */
-public class MetricsLite {
+public class Metrics {
 
     static {
         // You can use the property to disable the check in your test environment
         if (System.getProperty("bstats.relocatecheck") == null || !System.getProperty("bstats.relocatecheck").equals("false")) {
             // Maven's Relocate is clever and changes strings, too. So we have to use this little "trick" ... :D
-            final String defaultPackage = new String(new byte[]{'o', 'r', 'g', '.', 'b', 's', 't', 'a', 't', 's'});
+            final String defaultPackage = new String(
+                    new byte[]{'o', 'r', 'g', '.', 'b', 's', 't', 'a', 't', 's', '.', 's', 'p', 'o', 'n', 'g', 'e'});
             final String examplePackage = new String(new byte[]{'y', 'o', 'u', 'r', '.', 'p', 'a', 'c', 'k', 'a', 'g', 'e'});
             // We want to make sure nobody just copy & pastes the example and use the wrong package names
-            if (MetricsLite.class.getPackage().getName().equals(defaultPackage) || MetricsLite.class.getPackage().getName().equals(examplePackage)) {
+            if (Metrics.class.getPackage().getName().equals(defaultPackage) || Metrics.class.getPackage().getName().equals(examplePackage)) {
                 throw new IllegalStateException("bStats Metrics class has not been relocated correctly!");
             }
         }
@@ -80,13 +84,16 @@ public class MetricsLite {
     // A list with all known metrics class objects including this one
     private static final List<Object> knownMetricsInstances = new ArrayList<>();
 
+    // A list with all custom charts
+    private final List<CustomChart> charts = new ArrayList<>();
+
     // The config path
     private Path configDir;
 
     // The constructor is not meant to be called by the user himself.
     // The instance is created using Dependency Injection (https://docs.spongepowered.org/master/en/plugin/injection.html)
     @Inject
-    private MetricsLite(PluginContainer plugin, Logger logger, @ConfigDir(sharedRoot = true) Path configDir) {
+    private Metrics(PluginContainer plugin, Logger logger, @ConfigDir(sharedRoot = true) Path configDir) {
         if (created) {
             // We don't want more than one instance of this class
             throw new IllegalStateException("There's already an instance of this Metrics class!");
@@ -133,6 +140,16 @@ public class MetricsLite {
     }
 
     /**
+     * Adds a custom chart.
+     *
+     * @param chart The chart to add.
+     */
+    public void addCustomChart(CustomChart chart) {
+        Validate.notNull(chart, "Chart cannot be null");
+        charts.add(chart);
+    }
+
+    /**
      * Links an other metrics class with this class.
      * This method is called using Reflection.
      *
@@ -158,6 +175,14 @@ public class MetricsLite {
         data.addProperty("pluginVersion", pluginVersion);
 
         JsonArray customCharts = new JsonArray();
+        for (CustomChart customChart : charts) {
+            // Add the data of the custom charts
+            JsonObject chart = customChart.getRequestJsonObject(logger, logFailedRequests);
+            if (chart == null) { // If the chart is null, we skip it
+                continue;
+            }
+            customCharts.add(chart);
+        }
         data.add("customCharts", customCharts);
 
         return data;
@@ -414,6 +439,337 @@ public class MetricsLite {
         gzip.write(str.getBytes("UTF-8"));
         gzip.close();
         return outputStream.toByteArray();
+    }
+
+    /**
+     * Represents a custom chart.
+     */
+    public static abstract class CustomChart {
+
+        // The id of the chart
+        private final String chartId;
+
+        /**
+         * Class constructor.
+         *
+         * @param chartId The id of the chart.
+         */
+        CustomChart(String chartId) {
+            if (chartId == null || chartId.isEmpty()) {
+                throw new IllegalArgumentException("ChartId cannot be null or empty!");
+            }
+            this.chartId = chartId;
+        }
+
+        private JsonObject getRequestJsonObject(Logger logger, boolean logFailedRequests) {
+            JsonObject chart = new JsonObject();
+            chart.addProperty("chartId", chartId);
+            try {
+                JsonObject data = getChartData();
+                if (data == null) {
+                    // If the data is null we don't send the chart.
+                    return null;
+                }
+                chart.add("data", data);
+            } catch (Throwable t) {
+                if (logFailedRequests) {
+                    logger.warn("Failed to get data for custom chart with id {}", chartId, t);
+                }
+                return null;
+            }
+            return chart;
+        }
+
+        protected abstract JsonObject getChartData() throws Exception;
+
+    }
+
+    /**
+     * Represents a custom simple pie.
+     */
+    public static class SimplePie extends CustomChart {
+
+        private final Callable<String> callable;
+
+        /**
+         * Class constructor.
+         *
+         * @param chartId The id of the chart.
+         * @param callable The callable which is used to request the chart data.
+         */
+        public SimplePie(String chartId, Callable<String> callable) {
+            super(chartId);
+            this.callable = callable;
+        }
+
+        @Override
+        protected JsonObject getChartData() throws Exception {
+            JsonObject data = new JsonObject();
+            String value = callable.call();
+            if (value == null || value.isEmpty()) {
+                // Null = skip the chart
+                return null;
+            }
+            data.addProperty("value", value);
+            return data;
+        }
+    }
+
+    /**
+     * Represents a custom advanced pie.
+     */
+    public static class AdvancedPie extends CustomChart {
+
+        private final Callable<Map<String, Integer>> callable;
+
+        /**
+         * Class constructor.
+         *
+         * @param chartId The id of the chart.
+         * @param callable The callable which is used to request the chart data.
+         */
+        public AdvancedPie(String chartId, Callable<Map<String, Integer>> callable) {
+            super(chartId);
+            this.callable = callable;
+        }
+
+        @Override
+        protected JsonObject getChartData() throws Exception {
+            JsonObject data = new JsonObject();
+            JsonObject values = new JsonObject();
+            Map<String, Integer> map = callable.call();
+            if (map == null || map.isEmpty()) {
+                // Null = skip the chart
+                return null;
+            }
+            boolean allSkipped = true;
+            for (Map.Entry<String, Integer> entry : map.entrySet()) {
+                if (entry.getValue() == 0) {
+                    continue; // Skip this invalid
+                }
+                allSkipped = false;
+                values.addProperty(entry.getKey(), entry.getValue());
+            }
+            if (allSkipped) {
+                // Null = skip the chart
+                return null;
+            }
+            data.add("values", values);
+            return data;
+        }
+    }
+
+    /**
+     * Represents a custom drilldown pie.
+     */
+    public static class DrilldownPie extends CustomChart {
+
+        private final Callable<Map<String, Map<String, Integer>>> callable;
+
+        /**
+         * Class constructor.
+         *
+         * @param chartId The id of the chart.
+         * @param callable The callable which is used to request the chart data.
+         */
+        public DrilldownPie(String chartId, Callable<Map<String, Map<String, Integer>>> callable) {
+            super(chartId);
+            this.callable = callable;
+        }
+
+        @Override
+        public JsonObject getChartData() throws Exception {
+            JsonObject data = new JsonObject();
+            JsonObject values = new JsonObject();
+            Map<String, Map<String, Integer>> map = callable.call();
+            if (map == null || map.isEmpty()) {
+                // Null = skip the chart
+                return null;
+            }
+            boolean reallyAllSkipped = true;
+            for (Map.Entry<String, Map<String, Integer>> entryValues : map.entrySet()) {
+                JsonObject value = new JsonObject();
+                boolean allSkipped = true;
+                for (Map.Entry<String, Integer> valueEntry : map.get(entryValues.getKey()).entrySet()) {
+                    value.addProperty(valueEntry.getKey(), valueEntry.getValue());
+                    allSkipped = false;
+                }
+                if (!allSkipped) {
+                    reallyAllSkipped = false;
+                    values.add(entryValues.getKey(), value);
+                }
+            }
+            if (reallyAllSkipped) {
+                // Null = skip the chart
+                return null;
+            }
+            data.add("values", values);
+            return data;
+        }
+    }
+
+    /**
+     * Represents a custom single line chart.
+     */
+    public static class SingleLineChart extends CustomChart {
+
+        private final Callable<Integer> callable;
+
+        /**
+         * Class constructor.
+         *
+         * @param chartId The id of the chart.
+         * @param callable The callable which is used to request the chart data.
+         */
+        public SingleLineChart(String chartId, Callable<Integer> callable) {
+            super(chartId);
+            this.callable = callable;
+        }
+
+        @Override
+        protected JsonObject getChartData() throws Exception {
+            JsonObject data = new JsonObject();
+            int value = callable.call();
+            if (value == 0) {
+                // Null = skip the chart
+                return null;
+            }
+            data.addProperty("value", value);
+            return data;
+        }
+
+    }
+
+    /**
+     * Represents a custom multi line chart.
+     */
+    public static class MultiLineChart extends CustomChart {
+
+        private final Callable<Map<String, Integer>> callable;
+
+        /**
+         * Class constructor.
+         *
+         * @param chartId The id of the chart.
+         * @param callable The callable which is used to request the chart data.
+         */
+        public MultiLineChart(String chartId, Callable<Map<String, Integer>> callable) {
+            super(chartId);
+            this.callable = callable;
+        }
+
+        @Override
+        protected JsonObject getChartData() throws Exception {
+            JsonObject data = new JsonObject();
+            JsonObject values = new JsonObject();
+            Map<String, Integer> map = callable.call();
+            if (map == null || map.isEmpty()) {
+                // Null = skip the chart
+                return null;
+            }
+            boolean allSkipped = true;
+            for (Map.Entry<String, Integer> entry : map.entrySet()) {
+                if (entry.getValue() == 0) {
+                    continue; // Skip this invalid
+                }
+                allSkipped = false;
+                values.addProperty(entry.getKey(), entry.getValue());
+            }
+            if (allSkipped) {
+                // Null = skip the chart
+                return null;
+            }
+            data.add("values", values);
+            return data;
+        }
+
+    }
+
+    /**
+     * Represents a custom simple bar chart.
+     */
+    public static class SimpleBarChart extends CustomChart {
+
+        private final Callable<Map<String, Integer>> callable;
+
+        /**
+         * Class constructor.
+         *
+         * @param chartId The id of the chart.
+         * @param callable The callable which is used to request the chart data.
+         */
+        public SimpleBarChart(String chartId, Callable<Map<String, Integer>> callable) {
+            super(chartId);
+            this.callable = callable;
+        }
+
+        @Override
+        protected JsonObject getChartData() throws Exception {
+            JsonObject data = new JsonObject();
+            JsonObject values = new JsonObject();
+            Map<String, Integer> map = callable.call();
+            if (map == null || map.isEmpty()) {
+                // Null = skip the chart
+                return null;
+            }
+            for (Map.Entry<String, Integer> entry : map.entrySet()) {
+                JsonArray categoryValues = new JsonArray();
+                categoryValues.add(new JsonPrimitive(entry.getValue()));
+                values.add(entry.getKey(), categoryValues);
+            }
+            data.add("values", values);
+            return data;
+        }
+
+    }
+
+    /**
+     * Represents a custom advanced bar chart.
+     */
+    public static class AdvancedBarChart extends CustomChart {
+
+        private final Callable<Map<String, int[]>> callable;
+
+        /**
+         * Class constructor.
+         *
+         * @param chartId The id of the chart.
+         * @param callable The callable which is used to request the chart data.
+         */
+        public AdvancedBarChart(String chartId, Callable<Map<String, int[]>> callable) {
+            super(chartId);
+            this.callable = callable;
+        }
+
+        @Override
+        protected JsonObject getChartData() throws Exception {
+            JsonObject data = new JsonObject();
+            JsonObject values = new JsonObject();
+            Map<String, int[]> map = callable.call();
+            if (map == null || map.isEmpty()) {
+                // Null = skip the chart
+                return null;
+            }
+            boolean allSkipped = true;
+            for (Map.Entry<String, int[]> entry : map.entrySet()) {
+                if (entry.getValue().length == 0) {
+                    continue; // Skip this invalid
+                }
+                allSkipped = false;
+                JsonArray categoryValues = new JsonArray();
+                for (int categoryValue : entry.getValue()) {
+                    categoryValues.add(new JsonPrimitive(categoryValue));
+                }
+                values.add(entry.getKey(), categoryValues);
+            }
+            if (allSkipped) {
+                // Null = skip the chart
+                return null;
+            }
+            data.add("values", values);
+            return data;
+        }
+
     }
 
 }
