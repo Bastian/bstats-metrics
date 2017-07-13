@@ -4,7 +4,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import net.md_5.bungee.api.plugin.Plugin;
-import net.md_5.bungee.api.scheduler.TaskScheduler;
 import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
@@ -24,8 +23,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -166,22 +163,14 @@ public class Metrics {
     }
 
     private void startSubmitting() {
-        // We use a timer cause want to be independent from the server tps
-        final Timer timer = new Timer(true);
-        timer.scheduleAtFixedRate(new TimerTask() {
+        plugin.getProxy().getScheduler().schedule(plugin, new Runnable() {
             @Override
             public void run() {
-                // The data collection (e.g. for custom graphs) is done sync
-                // Don't be afraid! The connection to the bStats server is still async, only the stats collection is sync ;)
-                TaskScheduler scheduler = plugin.getProxy().getScheduler();
-                scheduler.schedule(plugin, new Runnable() {
-                    @Override
-                    public void run() {
-                        submitData();
-                    }
-                }, 0L, TimeUnit.SECONDS);
+            // The data collection is async, as well as sending the data
+                // Bungeecord does not have a main thread, everything is async
+                submitData();
             }
-        }, 1000*60*2, 1000*60*30);
+        }, 2, 30, TimeUnit.MINUTES);
         // Submit the data every 30 minutes, first time after 2 minutes to give other plugins enough time to start
         // WARNING: Changing the frequency has no effect but your plugin WILL be blocked/deleted!
         // WARNING: Just don't do it!
@@ -244,21 +233,15 @@ public class Metrics {
 
         data.add("plugins", pluginData);
 
-        // Create a new thread for the connection to the bStats server
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    // Send the data
-                    sendData(data);
-                } catch (Exception e) {
-                    // Something went wrong! :(
-                    if (logFailedRequests) {
-                        plugin.getLogger().log(Level.WARNING, "Could not submit plugin stats!", e);
-                    }
-                }
+        try {
+            // Send the data
+            sendData(data);
+        } catch (Exception e) {
+            // Something went wrong! :(
+            if (logFailedRequests) {
+                plugin.getLogger().log(Level.WARNING, "Could not submit plugin stats!", e);
             }
-        }).start();
+        }
     }
 
     /**
