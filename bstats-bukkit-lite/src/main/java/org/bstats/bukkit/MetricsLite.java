@@ -29,6 +29,7 @@ import java.util.zip.GZIPOutputStream;
  *
  * Check out https://bStats.org/ to learn more about bStats!
  */
+@SuppressWarnings({"WeakerAccess", "unused", "Duplicates", "unchecked"})
 public class MetricsLite {
 
     static {
@@ -161,6 +162,7 @@ public class MetricsLite {
 
         data.put("pluginName", pluginName); // Append the name of the plugin
         data.put("pluginVersion", pluginVersion); // Append the version of the plugin
+        //noinspection MismatchedQueryAndUpdateOfCollection
         JSONArray customCharts = new JSONArray();
         data.put("customCharts", customCharts);
 

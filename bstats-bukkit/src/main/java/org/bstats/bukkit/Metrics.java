@@ -33,6 +33,7 @@ import java.util.zip.GZIPOutputStream;
  *
  * Check out https://bStats.org/ to learn more about bStats!
  */
+@SuppressWarnings({"unchecked", "Duplicates", "unused", "WeakerAccess"})
 public class Metrics {
 
     static {
@@ -377,6 +378,40 @@ public class Metrics {
 
     }
 
+    public static abstract class ComplexChart extends CustomChart {
+        protected final Callable<Map<String, Integer>> callable;
+
+        public ComplexChart(String chartId, Callable<Map<String, Integer>> callable) {
+            super(chartId);
+            this.callable = callable;
+        }
+
+        @Override
+        protected JSONObject getChartData() throws Exception {
+            JSONObject data = new JSONObject();
+            JSONObject values = new JSONObject();
+            Map<String, Integer> map = callable.call();
+            if (map == null || map.isEmpty()) {
+                // Null = skip the chart
+                return null;
+            }
+            boolean allSkipped = true;
+            for (Map.Entry<String, Integer> entry : map.entrySet()) {
+                if (entry.getValue() == 0) {
+                    continue; // Skip this invalid
+                }
+                allSkipped = false;
+                values.put(entry.getKey(), entry.getValue());
+            }
+            if (allSkipped) {
+                // Null = skip the chart
+                return null;
+            }
+            data.put("values", values);
+            return data;
+        }
+    }
+
     /**
      * Represents a custom simple pie.
      */
@@ -411,10 +446,7 @@ public class Metrics {
     /**
      * Represents a custom advanced pie.
      */
-    public static class AdvancedPie extends CustomChart {
-
-        private final Callable<Map<String, Integer>> callable;
-
+    public static class AdvancedPie extends ComplexChart {
         /**
          * Class constructor.
          *
@@ -422,33 +454,7 @@ public class Metrics {
          * @param callable The callable which is used to request the chart data.
          */
         public AdvancedPie(String chartId, Callable<Map<String, Integer>> callable) {
-            super(chartId);
-            this.callable = callable;
-        }
-
-        @Override
-        protected JSONObject getChartData() throws Exception {
-            JSONObject data = new JSONObject();
-            JSONObject values = new JSONObject();
-            Map<String, Integer> map = callable.call();
-            if (map == null || map.isEmpty()) {
-                // Null = skip the chart
-                return null;
-            }
-            boolean allSkipped = true;
-            for (Map.Entry<String, Integer> entry : map.entrySet()) {
-                if (entry.getValue() == 0) {
-                    continue; // Skip this invalid
-                }
-                allSkipped = false;
-                values.put(entry.getKey(), entry.getValue());
-            }
-            if (allSkipped) {
-                // Null = skip the chart
-                return null;
-            }
-            data.put("values", values);
-            return data;
+            super(chartId, callable);
         }
     }
 
@@ -536,10 +542,7 @@ public class Metrics {
     /**
      * Represents a custom multi line chart.
      */
-    public static class MultiLineChart extends CustomChart {
-
-        private final Callable<Map<String, Integer>> callable;
-
+    public static class MultiLineChart extends ComplexChart {
         /**
          * Class constructor.
          *
@@ -547,35 +550,8 @@ public class Metrics {
          * @param callable The callable which is used to request the chart data.
          */
         public MultiLineChart(String chartId, Callable<Map<String, Integer>> callable) {
-            super(chartId);
-            this.callable = callable;
+            super(chartId, callable);
         }
-
-        @Override
-        protected JSONObject getChartData() throws Exception {
-            JSONObject data = new JSONObject();
-            JSONObject values = new JSONObject();
-            Map<String, Integer> map = callable.call();
-            if (map == null || map.isEmpty()) {
-                // Null = skip the chart
-                return null;
-            }
-            boolean allSkipped = true;
-            for (Map.Entry<String, Integer> entry : map.entrySet()) {
-                if (entry.getValue() == 0) {
-                    continue; // Skip this invalid
-                }
-                allSkipped = false;
-                values.put(entry.getKey(), entry.getValue());
-            }
-            if (allSkipped) {
-                // Null = skip the chart
-                return null;
-            }
-            data.put("values", values);
-            return data;
-        }
-
     }
 
     /**

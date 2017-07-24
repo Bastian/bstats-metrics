@@ -38,6 +38,7 @@ import java.util.zip.GZIPOutputStream;
  *
  * Check out https://bStats.org/ to learn more about bStats!
  */
+@SuppressWarnings({"WeakerAccess", "unused", "Duplicates", "ResultOfMethodCallIgnored"})
 public class MetricsLite {
 
     static {
@@ -340,7 +341,7 @@ public class MetricsLite {
         }
         try (
                 FileReader fileReader = new FileReader(file);
-                BufferedReader bufferedReader =  new BufferedReader(fileReader);
+                BufferedReader bufferedReader =  new BufferedReader(fileReader)
         ) {
             return bufferedReader.readLine();
         }
