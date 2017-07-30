@@ -65,6 +65,9 @@ public class MetricsLite {
     // Should failed requests be logged?
     private boolean logFailedRequests = false;
 
+    // Should we print the data being send to the console?
+    private boolean debug = false;
+
     // A list with all known metrics class objects including this one
     private static final List<Object> knownMetricsInstances = new ArrayList<>();
 
@@ -235,7 +238,8 @@ public class MetricsLite {
                     "#Check out https://bStats.org/ to learn more :)",
                     "enabled: true",
                     "serverUuid: \"" + UUID.randomUUID().toString() + "\"",
-                    "logFailedRequests: false");
+                    "logFailedRequests: false",
+                    "debug: false");
         }
 
         Configuration configuration = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
@@ -244,6 +248,7 @@ public class MetricsLite {
         enabled = configuration.getBoolean("enabled", true);
         serverUUID = configuration.getString("serverUuid");
         logFailedRequests = configuration.getBoolean("logFailedRequests", false);
+        debug = configuration.getBoolean("debug", false);
     }
 
     /**
@@ -321,15 +326,21 @@ public class MetricsLite {
      * @param data The data to send.
      * @throws Exception If the request failed.
      */
-    private static void sendData(JsonObject data) throws Exception {
+    private void sendData(JsonObject data) throws Exception {
         if (data == null) {
             throw new IllegalArgumentException("Data cannot be null");
+        }
+
+        String dataStr = data.toString();
+
+        if (debug) {
+            plugin.getLogger().log(Level.INFO, "Data being send:\n" + dataStr);
         }
 
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();
 
         // Compress the data to save bandwidth
-        byte[] compressedData = compress(data.toString());
+        byte[] compressedData = compress(dataStr);
 
         // Add headers
         connection.setRequestMethod("POST");
