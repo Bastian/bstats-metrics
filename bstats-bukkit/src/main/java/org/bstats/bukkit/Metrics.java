@@ -58,8 +58,8 @@ public class Metrics {
     // Should failed requests be logged?
     private static boolean logFailedRequests;
 
-    // Should we print the data being send to the console?
-    private boolean debug = false;
+    // Should the sent data be logged?
+    private boolean logSentData = false;
 
     // The uuid of the server
     private static String serverUUID;
@@ -95,8 +95,8 @@ public class Metrics {
             config.addDefault("serverUuid", UUID.randomUUID().toString());
             // Should failed request be logged?
             config.addDefault("logFailedRequests", false);
-            // Should we print the data being send to the console?
-            config.addDefault("debug", false);
+            // Should the sent data be logged?
+            config.addDefault("logSentData", false);
 
             // Inform the server owners about bStats
             config.options().header(
@@ -113,7 +113,7 @@ public class Metrics {
         // Load the data
         serverUUID = config.getString("serverUuid");
         logFailedRequests = config.getBoolean("logFailedRequests", false);
-        debug = config.getBoolean("debug", false);
+        logSentData = config.getBoolean("logSentData", false);
         if (config.getBoolean("enabled", true)) {
             boolean found = false;
             // Search for all other bStats Metrics classes to see if we are the first one
@@ -301,8 +301,8 @@ public class Metrics {
 
         String dataStr = data.toString();
 
-        if (debug) {
-            plugin.getLogger().log(Level.INFO, "Data being send:\n" + dataStr);
+        if (logSentData) {
+            plugin.getLogger().log(Level.INFO, "Data being sent:\n" + dataStr);
         }
 
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();

@@ -81,8 +81,8 @@ public class Metrics {
     // Should failed requests be logged?
     private boolean logFailedRequests = false;
 
-    // Should we print the data being send to the console?
-    private boolean debug = false;
+    // Should the sent data be logged?
+    private boolean logSentData = false;
 
     // A list with all known metrics class objects including this one
     private static final List<Object> knownMetricsInstances = new ArrayList<>();
@@ -306,8 +306,8 @@ public class Metrics {
             node.getNode("serverUuid").setValue(UUID.randomUUID().toString());
             // Should failed request be logged?
             node.getNode("logFailedRequests").setValue(false);
-            // Should we print the data being send to the console?
-            node.getNode("debug").setValue(false);
+            // Should the sent data be logged?
+            node.getNode("logSentData").setValue(false);
 
             // Add information about bStats
             node.getNode("enabled").setComment(
@@ -326,7 +326,7 @@ public class Metrics {
         enabled = node.getNode("enabled").getBoolean(true);
         serverUUID = node.getNode("serverUuid").getString();
         logFailedRequests = node.getNode("logFailedRequests").getBoolean(false);
-        debug = node.getNode("debug").getBoolean(false);
+        logSentData = node.getNode("logSentData").getBoolean(false);
     }
 
     /**
@@ -408,8 +408,8 @@ public class Metrics {
 
         String dataStr = data.toString();
 
-        if (debug) {
-            plugin.getLogger().info("Data being send:\n" + dataStr);
+        if (logSentData) {
+            plugin.getLogger().info("Data being sent:\n" + dataStr);
         }
 
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();

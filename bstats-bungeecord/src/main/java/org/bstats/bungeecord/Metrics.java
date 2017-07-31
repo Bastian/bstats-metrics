@@ -69,8 +69,8 @@ public class Metrics {
     // Should failed requests be logged?
     private boolean logFailedRequests = false;
 
-    // Should we print the data being send to the console?
-    private boolean debug = false;
+    // Should the sent data be logged?
+    private boolean logSentData = false;
 
     // A list with all known metrics class objects including this one
     private static final List<Object> knownMetricsInstances = new ArrayList<>();
@@ -266,7 +266,7 @@ public class Metrics {
                     "enabled: true",
                     "serverUuid: \"" + UUID.randomUUID().toString() + "\"",
                     "logFailedRequests: false",
-                    "debug: false");
+                    "logSentData: false");
         }
 
         Configuration configuration = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
@@ -275,7 +275,7 @@ public class Metrics {
         enabled = configuration.getBoolean("enabled", true);
         serverUUID = configuration.getString("serverUuid");
         logFailedRequests = configuration.getBoolean("logFailedRequests", false);
-        debug = configuration.getBoolean("debug", false);
+        logSentData = configuration.getBoolean("logSentData", false);
     }
 
     /**
@@ -360,8 +360,8 @@ public class Metrics {
 
         String dataStr = data.toString();
 
-        if (debug) {
-            plugin.getLogger().log(Level.INFO, "Data being send:\n" + dataStr);
+        if (logSentData) {
+            plugin.getLogger().log(Level.INFO, "Data being sent:\n" + dataStr);
         }
 
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();
