@@ -409,7 +409,7 @@ public class Metrics {
         String dataStr = data.toString();
 
         if (logSentData) {
-            plugin.getLogger().info("Data being sent:\n" + dataStr);
+            logger.debug("Data being sent:\n{}", dataStr);
         }
 
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();
