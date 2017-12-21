@@ -5,7 +5,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.ServicePriority;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.Plugin;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
@@ -62,7 +62,7 @@ public class Metrics {
     private static String serverUUID;
 
     // The plugin
-    private final JavaPlugin plugin;
+    private final Plugin plugin;
 
     // A list with all custom charts
     private final List<CustomChart> charts = new ArrayList<>();
@@ -72,7 +72,7 @@ public class Metrics {
      *
      * @param plugin The plugin which stats should be submitted.
      */
-    public Metrics(JavaPlugin plugin) {
+    public Metrics(Plugin plugin) {
         if (plugin == null) {
             throw new IllegalArgumentException("Plugin cannot be null!");
         }
