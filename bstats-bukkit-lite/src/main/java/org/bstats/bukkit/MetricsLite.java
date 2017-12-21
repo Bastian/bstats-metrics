@@ -5,7 +5,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.ServicePriority;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.Plugin;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
@@ -58,14 +58,14 @@ public class MetricsLite {
     private static String serverUUID;
 
     // The plugin
-    private final JavaPlugin plugin;
+    private final Plugin plugin;
 
     /**
      * Class constructor.
      *
      * @param plugin The plugin which stats should be submitted.
      */
-    public MetricsLite(JavaPlugin plugin) {
+    public MetricsLite(Plugin plugin) {
         if (plugin == null) {
             throw new IllegalArgumentException("Plugin cannot be null!");
         }
