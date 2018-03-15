@@ -69,6 +69,9 @@ public class Metrics {
     // Should failed requests be logged?
     private boolean logFailedRequests = false;
 
+    // Should the sent data be logged?
+    private boolean logSentData = false;
+
     // A list with all known metrics class objects including this one
     private static final List<Object> knownMetricsInstances = new ArrayList<>();
 
@@ -262,7 +265,8 @@ public class Metrics {
                     "#Check out https://bStats.org/ to learn more :)",
                     "enabled: true",
                     "serverUuid: \"" + UUID.randomUUID().toString() + "\"",
-                    "logFailedRequests: false");
+                    "logFailedRequests: false",
+                    "logSentData: false");
         }
 
         Configuration configuration = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
@@ -271,6 +275,7 @@ public class Metrics {
         enabled = configuration.getBoolean("enabled", true);
         serverUUID = configuration.getString("serverUuid");
         logFailedRequests = configuration.getBoolean("logFailedRequests", false);
+        logSentData = configuration.getBoolean("logSentData", false);
     }
 
     /**
@@ -348,23 +353,29 @@ public class Metrics {
      * @param data The data to send.
      * @throws Exception If the request failed.
      */
-    private static void sendData(JsonObject data) throws Exception {
+    private void sendData(JsonObject data) throws Exception {
         if (data == null) {
             throw new IllegalArgumentException("Data cannot be null");
+        }
+
+        String dataStr = data.toString();
+
+        if (logSentData) {
+            plugin.getLogger().log(Level.INFO, "Data being sent:\n" + dataStr);
         }
 
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();
 
         // Compress the data to save bandwidth
-        byte[] compressedData = compress(data.toString());
+        byte[] compressedData = compress(dataStr);
 
         // Add headers
         connection.setRequestMethod("POST");
-        connection.addRequestProperty("Accept", "application/Json");
+        connection.addRequestProperty("Accept", "application/json");
         connection.addRequestProperty("Connection", "close");
         connection.addRequestProperty("Content-Encoding", "gzip"); // We gzip our request
         connection.addRequestProperty("Content-Length", String.valueOf(compressedData.length));
-        connection.setRequestProperty("Content-Type", "application/Json"); // We send our data in Json format
+        connection.setRequestProperty("Content-Type", "application/json"); // We send our data in JSON format
         connection.setRequestProperty("User-Agent", "MC-Server/" + B_STATS_VERSION);
 
         // Send data

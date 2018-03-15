@@ -58,6 +58,9 @@ public class Metrics {
     // Should failed requests be logged?
     private static boolean logFailedRequests;
 
+    // Should the sent data be logged?
+    private boolean logSentData = false;
+
     // The uuid of the server
     private static String serverUUID;
 
@@ -92,6 +95,8 @@ public class Metrics {
             config.addDefault("serverUuid", UUID.randomUUID().toString());
             // Should failed request be logged?
             config.addDefault("logFailedRequests", false);
+            // Should the sent data be logged?
+            config.addDefault("logSentData", false);
 
             // Inform the server owners about bStats
             config.options().header(
@@ -108,6 +113,7 @@ public class Metrics {
         // Load the data
         serverUUID = config.getString("serverUuid");
         logFailedRequests = config.getBoolean("logFailedRequests", false);
+        logSentData = config.getBoolean("logSentData", false);
         if (config.getBoolean("enabled", true)) {
             boolean found = false;
             // Search for all other bStats Metrics classes to see if we are the first one
@@ -285,17 +291,24 @@ public class Metrics {
      * @param data The data to send.
      * @throws Exception If the request failed.
      */
-    private static void sendData(JSONObject data) throws Exception {
+    private void sendData(JSONObject data) throws Exception {
         if (data == null) {
             throw new IllegalArgumentException("Data cannot be null!");
         }
         if (Bukkit.isPrimaryThread()) {
             throw new IllegalAccessException("This method must not be called from the main thread!");
         }
+
+        String dataStr = data.toString();
+
+        if (logSentData) {
+            plugin.getLogger().log(Level.INFO, "Data being sent:\n" + dataStr);
+        }
+
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();
 
         // Compress the data to save bandwidth
-        byte[] compressedData = compress(data.toString());
+        byte[] compressedData = compress(dataStr);
 
         // Add headers
         connection.setRequestMethod("POST");

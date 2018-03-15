@@ -78,6 +78,9 @@ public class MetricsLite {
     // Should failed requests be logged?
     private boolean logFailedRequests = false;
 
+    // Should the sent data be logged?
+    private boolean logSentData = false;
+
     // A list with all known metrics class objects including this one
     private static final List<Object> knownMetricsInstances = new ArrayList<>();
 
@@ -279,6 +282,8 @@ public class MetricsLite {
             node.getNode("serverUuid").setValue(UUID.randomUUID().toString());
             // Should failed request be logged?
             node.getNode("logFailedRequests").setValue(false);
+            // Should the sent data be logged?
+            node.getNode("logSentData").setValue(false);
 
             // Add information about bStats
             node.getNode("enabled").setComment(
@@ -297,6 +302,7 @@ public class MetricsLite {
         enabled = node.getNode("enabled").getBoolean(true);
         serverUUID = node.getNode("serverUuid").getString();
         logFailedRequests = node.getNode("logFailedRequests").getBoolean(false);
+        logSentData = node.getNode("logSentData").getBoolean(false);
     }
 
     /**
@@ -373,12 +379,19 @@ public class MetricsLite {
      * @param data The data to send.
      * @throws Exception If the request failed.
      */
-    private static void sendData(JsonObject data) throws Exception {
+    private void sendData(JsonObject data) throws Exception {
         Validate.notNull(data, "Data cannot be null");
+
+        String dataStr = data.toString();
+
+        if (logSentData) {
+            logger.debug("Data being sent:\n{}", dataStr);
+        }
+
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();
 
         // Compress the data to save bandwidth
-        byte[] compressedData = compress(data.toString());
+        byte[] compressedData = compress(dataStr);
 
         // Add headers
         connection.setRequestMethod("POST");
