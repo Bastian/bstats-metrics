@@ -242,8 +242,7 @@ public class Metrics {
             playerAmount = Bukkit.getOnlinePlayers().size(); // Just use the new method if the Reflection failed
         }
         int onlineMode = Bukkit.getOnlineMode() ? 1 : 0;
-        String bukkitVersion = org.bukkit.Bukkit.getVersion();
-        bukkitVersion = bukkitVersion.substring(bukkitVersion.indexOf("MC: ") + 4, bukkitVersion.length() - 1);
+        String bukkitVersion = Bukkit.getVersion();
 
         // OS/Java specific data
         String javaVersion = System.getProperty("java.version");

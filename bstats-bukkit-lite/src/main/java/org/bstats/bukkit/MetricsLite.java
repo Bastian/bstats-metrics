@@ -204,7 +204,6 @@ public class MetricsLite {
         }
         int onlineMode = Bukkit.getOnlineMode() ? 1 : 0;
         String bukkitVersion = Bukkit.getVersion();
-        bukkitVersion = bukkitVersion.substring(bukkitVersion.indexOf("MC: ") + 4, bukkitVersion.length() - 1);
 
         // OS/Java specific data
         String javaVersion = System.getProperty("java.version");
