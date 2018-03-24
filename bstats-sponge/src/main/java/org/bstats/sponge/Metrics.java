@@ -148,6 +148,15 @@ public class Metrics {
     }
 
     /**
+     * Checks if bStats is enabled.
+     *
+     * @return Whether bStats is enabled or not.
+     */
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    /**
      * Adds a custom chart.
      *
      * @param chart The chart to add.

@@ -58,6 +58,9 @@ public class Metrics {
     // The url to which the data is sent
     private static final String URL = "https://bStats.org/submitData/bukkit";
 
+    // Is bStats enabled on this server?
+    private boolean enabled;
+
     // Should failed requests be logged?
     private static boolean logFailedRequests;
 
@@ -119,11 +122,13 @@ public class Metrics {
         }
 
         // Load the data
+        enabled = config.getBoolean("enabled", true);
         serverUUID = config.getString("serverUuid");
         logFailedRequests = config.getBoolean("logFailedRequests", false);
         logSentData = config.getBoolean("logSentData", false);
         logResponseStatusText = config.getBoolean("logResponseStatusText", false);
-        if (config.getBoolean("enabled", true)) {
+
+        if (enabled) {
             boolean found = false;
             // Search for all other bStats Metrics classes to see if we are the first one
             for (Class<?> service : Bukkit.getServicesManager().getKnownServices()) {
@@ -140,6 +145,15 @@ public class Metrics {
                 startSubmitting();
             }
         }
+    }
+
+    /**
+     * Checks if bStats is enabled.
+     *
+     * @return Whether bStats is enabled or not.
+     */
+    public boolean isEnabled() {
+        return enabled;
     }
 
     /**
