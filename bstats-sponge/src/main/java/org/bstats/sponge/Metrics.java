@@ -24,6 +24,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.nio.file.Path;
@@ -80,6 +82,12 @@ public class Metrics {
 
     // Should failed requests be logged?
     private boolean logFailedRequests = false;
+
+    // Should the sent data be logged?
+    private static boolean logSentData;
+
+    // Should the response text be logged?
+    private static boolean logResponseStatusText;
 
     // A list with all known metrics class objects including this one
     private static final List<Object> knownMetricsInstances = new ArrayList<>();
@@ -272,7 +280,7 @@ public class Metrics {
         new Thread(() ->  {
             try {
                 // Send the data
-                sendData(data);
+                sendData(logger, data);
             } catch (Exception e) {
                 // Something went wrong! :(
                 if (logFailedRequests) {
@@ -303,6 +311,10 @@ public class Metrics {
             node.getNode("serverUuid").setValue(UUID.randomUUID().toString());
             // Should failed request be logged?
             node.getNode("logFailedRequests").setValue(false);
+            // Should the sent data be logged?
+            node.getNode("logSentData").setValue(false);
+            // Should the response text be logged?
+            node.getNode("logResponseStatusText").setValue(false);
 
             // Add information about bStats
             node.getNode("enabled").setComment(
@@ -321,6 +333,8 @@ public class Metrics {
         enabled = node.getNode("enabled").getBoolean(true);
         serverUUID = node.getNode("serverUuid").getString();
         logFailedRequests = node.getNode("logFailedRequests").getBoolean(false);
+        logSentData = node.getNode("logSentData").getBoolean(false);
+        logResponseStatusText = node.getNode("logResponseStatusText").getBoolean(false);
     }
 
     /**
@@ -394,11 +408,15 @@ public class Metrics {
     /**
      * Sends the data to the bStats server.
      *
+     * @param logger The used logger.
      * @param data The data to send.
      * @throws Exception If the request failed.
      */
-    private static void sendData(JsonObject data) throws Exception {
+    private static void sendData(Logger logger, JsonObject data) throws Exception {
         Validate.notNull(data, "Data cannot be null");
+        if (logSentData) {
+            logger.info("Sending data to bStats: {}", data.toString());
+        }
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();
 
         // Compress the data to save bandwidth
@@ -420,7 +438,18 @@ public class Metrics {
         outputStream.flush();
         outputStream.close();
 
-        connection.getInputStream().close(); // We don't care about the response - Just send our data :)
+        InputStream inputStream = connection.getInputStream();
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+
+        StringBuilder builder = new StringBuilder();
+        String line;
+        while ((line = bufferedReader.readLine()) != null) {
+            builder.append(line);
+        }
+        bufferedReader.close();
+        if (logResponseStatusText) {
+            logger.info("Sent data to bStats and received response: {}", builder.toString());
+        }
     }
 
     /**

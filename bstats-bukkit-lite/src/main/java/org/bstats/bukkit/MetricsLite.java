@@ -2,18 +2,21 @@ package org.bstats.bukkit;
 
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.RegisteredServiceProvider;
+import org.bukkit.plugin.ServicePriority;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import javax.net.ssl.HttpsURLConnection;
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -54,6 +57,12 @@ public class MetricsLite {
     // Should failed requests be logged?
     private static boolean logFailedRequests;
 
+    // Should the sent data be logged?
+    private static boolean logSentData;
+
+    // Should the response text be logged?
+    private static boolean logResponseStatusText;
+
     // The uuid of the server
     private static String serverUUID;
 
@@ -85,6 +94,10 @@ public class MetricsLite {
             config.addDefault("serverUuid", UUID.randomUUID().toString());
             // Should failed request be logged?
             config.addDefault("logFailedRequests", false);
+            // Should the sent data be logged?
+            config.addDefault("logSentData", false);
+            // Should the response text be logged?
+            config.addDefault("logResponseStatusText", false);
 
             // Inform the server owners about bStats
             config.options().header(
@@ -242,7 +255,7 @@ public class MetricsLite {
             public void run() {
                 try {
                     // Send the data
-                    sendData(data);
+                    sendData(plugin, data);
                 } catch (Exception e) {
                     // Something went wrong! :(
                     if (logFailedRequests) {
@@ -256,15 +269,19 @@ public class MetricsLite {
     /**
      * Sends the data to the bStats server.
      *
+     * @param plugin Any plugin. It's just used to get a logger instance.
      * @param data The data to send.
      * @throws Exception If the request failed.
      */
-    private static void sendData(JSONObject data) throws Exception {
+    private static void sendData(Plugin plugin, JSONObject data) throws Exception {
         if (data == null) {
             throw new IllegalArgumentException("Data cannot be null!");
         }
         if (Bukkit.isPrimaryThread()) {
             throw new IllegalAccessException("This method must not be called from the main thread!");
+        }
+        if (logSentData) {
+            plugin.getLogger().info("Sending data to bStats: " + data.toString());
         }
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();
 
@@ -287,7 +304,18 @@ public class MetricsLite {
         outputStream.flush();
         outputStream.close();
 
-        connection.getInputStream().close(); // We don't care about the response - Just send our data :)
+        InputStream inputStream = connection.getInputStream();
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+
+        StringBuilder builder = new StringBuilder();
+        String line;
+        while ((line = bufferedReader.readLine()) != null) {
+            builder.append(line);
+        }
+        bufferedReader.close();
+        if (logResponseStatusText) {
+            plugin.getLogger().info("Sent data to bStats and received response: " + builder.toString());
+        }
     }
 
     /**
