@@ -274,7 +274,7 @@ public class MetricsLite {
             node = configurationLoader.load();
 
             // Add default values
-            node.getNode("enabled").setValue(true);
+            node.getNode("enabled").setValue(false);
             // Every server gets it's unique random id.
             node.getNode("serverUuid").setValue(UUID.randomUUID().toString());
             // Should failed request be logged?
@@ -294,7 +294,7 @@ public class MetricsLite {
         }
 
         // Load configuration
-        enabled = node.getNode("enabled").getBoolean(true);
+        enabled = node.getNode("enabled").getBoolean(false);
         serverUUID = node.getNode("serverUuid").getString();
         logFailedRequests = node.getNode("logFailedRequests").getBoolean(false);
     }
