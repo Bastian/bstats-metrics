@@ -159,15 +159,14 @@ public class MetricsLite2 implements Metrics {
             return;
         }
 
-        Metrics provider;
         if (Sponge.getServiceManager().isRegistered(Metrics.class)) {
-            provider = Sponge.getServiceManager().provideUnchecked(Metrics.class);
+            Metrics provider = Sponge.getServiceManager().provideUnchecked(Metrics.class);
+            provider.linkMetrics(this);
         } else {
-            provider = this;
             Sponge.getServiceManager().setProvider(plugin.getInstance().get(), Metrics.class, this);
+            this.linkMetrics(this);
             startSubmitting();
         }
-        provider.linkMetrics(this);
     }
 
     @Override
@@ -310,6 +309,35 @@ public class MetricsLite2 implements Metrics {
         // Submit the data every 30 minutes, first time after 5 minutes to give other plugins enough time to start
         // WARNING: Changing the frequency has no effect but your plugin WILL be blocked/deleted!
         // WARNING: Just don't do it!
+
+        // Let's log if things are enabled or not, once at startup:
+        List<String> enabled = new ArrayList<>();
+        List<String> disabled = new ArrayList<>();
+        for (Metrics metrics : knownMetricsInstances) {
+            if (Sponge.getMetricsConfigManager().areMetricsEnabled(metrics.getPluginContainer())) {
+                enabled.add(metrics.getPluginContainer().getName());
+            } else {
+                disabled.add(metrics.getPluginContainer().getName());
+            }
+        }
+        StringBuilder builder = new StringBuilder().append(System.lineSeparator());
+        builder.append("bStats metrics is present in ").append((enabled.size() + disabled.size())).append(" plugins on this server.");
+        builder.append(System.lineSeparator());
+        if (enabled.isEmpty()) {
+            builder.append("Presently, none of them are allowed to send data.").append(System.lineSeparator());
+        } else {
+            builder.append("Presently, the following ").append(enabled.size()).append(" plugins are allowed to send data:").append(System.lineSeparator());
+            builder.append(enabled.toString()).append(System.lineSeparator());
+        }
+        if (disabled.isEmpty()) {
+            builder.append("None of them have data sending disabled.");
+            builder.append(System.lineSeparator());
+        } else {
+            builder.append("Presently, the following ").append(disabled.size()).append(" plugins are not allowed to send data:").append(System.lineSeparator());
+            builder.append(disabled.toString()).append(System.lineSeparator());
+        }
+        builder.append("To change the enabled/disabled state of any bStats use in a plugin, visit the Sponge config!");
+        logger.info(builder.toString());
     }
 
     /**
