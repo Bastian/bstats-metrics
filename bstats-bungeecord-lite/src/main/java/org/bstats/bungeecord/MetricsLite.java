@@ -16,6 +16,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.nio.file.Path;
@@ -64,6 +66,12 @@ public class MetricsLite {
 
     // Should failed requests be logged?
     private boolean logFailedRequests = false;
+
+    // Should the sent data be logged?
+    private static boolean logSentData;
+
+    // Should the response text be logged?
+    private static boolean logResponseStatusText;
 
     // A list with all known metrics class objects including this one
     private static final List<Object> knownMetricsInstances = new ArrayList<>();
@@ -209,7 +217,7 @@ public class MetricsLite {
 
         try {
             // Send the data
-            sendData(data);
+            sendData(plugin, data);
         } catch (Exception e) {
             // Something went wrong! :(
             if (logFailedRequests) {
@@ -235,7 +243,9 @@ public class MetricsLite {
                     "#Check out https://bStats.org/ to learn more :)",
                     "enabled: true",
                     "serverUuid: \"" + UUID.randomUUID().toString() + "\"",
-                    "logFailedRequests: false");
+                    "logFailedRequests: false",
+                    "logSentData: false",
+                    "logResponseStatusText: false");
         }
 
         Configuration configuration = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
@@ -244,6 +254,8 @@ public class MetricsLite {
         enabled = configuration.getBoolean("enabled", true);
         serverUUID = configuration.getString("serverUuid");
         logFailedRequests = configuration.getBoolean("logFailedRequests", false);
+        logSentData = configuration.getBoolean("logSentData", false);
+        logResponseStatusText = configuration.getBoolean("logResponseStatusText", false);
     }
 
     /**
@@ -318,12 +330,16 @@ public class MetricsLite {
     /**
      * Sends the data to the bStats server.
      *
+     * @param plugin Any plugin. It's just used to get a logger instance.
      * @param data The data to send.
      * @throws Exception If the request failed.
      */
-    private static void sendData(JsonObject data) throws Exception {
+    private static void sendData(Plugin plugin, JsonObject data) throws Exception {
         if (data == null) {
             throw new IllegalArgumentException("Data cannot be null");
+        }
+        if (logSentData) {
+            plugin.getLogger().info("Sending data to bStats: " + data.toString());
         }
 
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();
@@ -347,7 +363,18 @@ public class MetricsLite {
         outputStream.flush();
         outputStream.close();
 
-        connection.getInputStream().close(); // We don't care about the response - Just send our data :)
+        InputStream inputStream = connection.getInputStream();
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+
+        StringBuilder builder = new StringBuilder();
+        String line;
+        while ((line = bufferedReader.readLine()) != null) {
+            builder.append(line);
+        }
+        bufferedReader.close();
+        if (logResponseStatusText) {
+            plugin.getLogger().info("Sent data to bStats and received response: " + builder.toString());
+        }
     }
 
     /**
