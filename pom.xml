@@ -18,9 +18,11 @@
         <module>bstats-bukkit</module>
         <module>bstats-bungeecord</module>
         <module>bstats-sponge</module>
+		<module>bstats-velocity</module>
         <module>bstats-bukkit-lite</module>
         <module>bstats-bungeecord-lite</module>
         <module>bstats-sponge-lite</module>
+		<module>bstats-velocity-lite</module>
     </modules>
 
     <build>
