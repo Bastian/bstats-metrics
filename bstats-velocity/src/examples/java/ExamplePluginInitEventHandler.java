@@ -10,7 +10,7 @@ public class ExamplePluginInitEventHandler implements EventHandler<ProxyInitiali
         ExamplePlugin plugin = ExamplePlugin.getInstance();
         
         // All you have to do is adding this line in your onEnable method:
-        Metrics metrics = new Metrics(plugin.getProxy().getPluginManager().fromInstance(plugin), plugin.getProxy(), plugin.getLogger());
+        Metrics metrics = new Metrics(plugin.getProxy().getPluginManager().fromInstance(plugin).get(), plugin.getProxy(), plugin.getLogger());
 
         // Optional: Add custom charts
         metrics.addCustomChart(new Metrics.SimplePie("chart_id", new Callable<String>() {
