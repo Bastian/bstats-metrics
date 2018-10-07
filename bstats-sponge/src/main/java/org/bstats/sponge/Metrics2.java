@@ -24,6 +24,8 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -127,6 +129,12 @@ public class Metrics2 implements Metrics {
 
     // Should failed requests be logged?
     private boolean logFailedRequests = false;
+
+    // Should the sent data be logged?
+    private static boolean logSentData;
+
+    // Should the response text be logged?
+    private static boolean logResponseStatusText;
 
     // A list with all known metrics class objects including this one
     private final List<Metrics> knownMetricsInstances = new CopyOnWriteArrayList<>();
@@ -429,7 +437,7 @@ public class Metrics2 implements Metrics {
         new Thread(() ->  {
             try {
                 // Send the data
-                sendData(data);
+                sendData(logger, data);
             } catch (Exception e) {
                 // Something went wrong! :(
                 if (logFailedRequests) {
@@ -460,6 +468,10 @@ public class Metrics2 implements Metrics {
             node.getNode("serverUuid").setValue(UUID.randomUUID().toString());
             // Should failed request be logged?
             node.getNode("logFailedRequests").setValue(false);
+            // Should the sent data be logged?
+            node.getNode("logSentData").setValue(false);
+            // Should the response text be logged?
+            node.getNode("logResponseStatusText").setValue(false);
 
             node.getNode("enabled").setComment(
                     "Enabling bStats in this file is deprecated. At least one of your plugins now uses the\n" +
@@ -499,6 +511,8 @@ public class Metrics2 implements Metrics {
         // Load configuration
         serverUUID = node.getNode("serverUuid").getString();
         logFailedRequests = node.getNode("logFailedRequests").getBoolean(false);
+        logSentData = node.getNode("logSentData").getBoolean(false);
+        logResponseStatusText = node.getNode("logResponseStatusText").getBoolean(false);
     }
 
     /**
@@ -523,11 +537,15 @@ public class Metrics2 implements Metrics {
     /**
      * Sends the data to the bStats server.
      *
+     * @param logger The used logger.
      * @param data The data to send.
      * @throws Exception If the request failed.
      */
-    private static void sendData(JsonObject data) throws Exception {
+    private static void sendData(Logger logger, JsonObject data) throws Exception {
         Validate.notNull(data, "Data cannot be null");
+        if (logSentData) {
+            logger.info("Sending data to bStats: {}", data.toString());
+        }
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();
 
         // Compress the data to save bandwidth
@@ -549,7 +567,18 @@ public class Metrics2 implements Metrics {
         outputStream.flush();
         outputStream.close();
 
-        connection.getInputStream().close(); // We don't care about the response - Just send our data :)
+        InputStream inputStream = connection.getInputStream();
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+
+        StringBuilder builder = new StringBuilder();
+        String line;
+        while ((line = bufferedReader.readLine()) != null) {
+            builder.append(line);
+        }
+        bufferedReader.close();
+        if (logResponseStatusText) {
+            logger.info("Sent data to bStats and received response: {}", builder.toString());
+        }
     }
 
     /**
