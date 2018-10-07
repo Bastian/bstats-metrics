@@ -1,69 +1,128 @@
-package org.bstats.bungeecord;
+package org.bstats.sponge;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-import net.md_5.bungee.api.plugin.Plugin;
-import net.md_5.bungee.config.Configuration;
-import net.md_5.bungee.config.ConfigurationProvider;
-import net.md_5.bungee.config.YamlConfiguration;
+import com.google.inject.Inject;
+import ninja.leaping.configurate.commented.CommentedConfigurationNode;
+import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
+import org.apache.commons.lang3.Validate;
+import org.slf4j.Logger;
+import org.spongepowered.api.Platform;
+import org.spongepowered.api.Sponge;
+import org.spongepowered.api.config.ConfigDir;
+import org.spongepowered.api.event.Listener;
+import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
+import org.spongepowered.api.plugin.PluginContainer;
+import org.spongepowered.api.scheduler.Scheduler;
+import org.spongepowered.api.scheduler.Task;
 
 import javax.net.ssl.HttpsURLConnection;
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.zip.GZIPOutputStream;
 
 /**
  * bStats collects some data for plugin authors.
  *
  * Check out https://bStats.org/ to learn more about bStats!
+ *
+ * DO NOT modify any of this class. Access it from your own plugin ONLY.
  */
-public class Metrics {
+public class Metrics2 implements Metrics {
+    /**
+     * Internal class for storing information about old bStats instances.
+     */
+    private static class OutdatedInstance implements Metrics {
+        private Object instance;
+        private Method method;
+        private PluginContainer plugin;
 
-    static {
-        // You can use the property to disable the check in your test environment
-        if (System.getProperty("bstats.relocatecheck") == null || !System.getProperty("bstats.relocatecheck").equals("false")) {
-            // Maven's Relocate is clever and changes strings, too. So we have to use this little "trick" ... :D
-            final String defaultPackage = new String(
-                    new byte[]{'o', 'r', 'g', '.', 'b', 's', 't', 'a', 't', 's', '.', 'b', 'u', 'n', 'g', 'e', 'e', 'c', 'o', 'r', 'd'});
-            final String examplePackage = new String(new byte[]{'y', 'o', 'u', 'r', '.', 'p', 'a', 'c', 'k', 'a', 'g', 'e'});
-            // We want to make sure nobody just copy & pastes the example and use the wrong package names
-            if (Metrics.class.getPackage().getName().equals(defaultPackage) || Metrics.class.getPackage().getName().equals(examplePackage)) {
-                throw new IllegalStateException("bStats Metrics class has not been relocated correctly!");
+        private OutdatedInstance(Object instance, Method method, PluginContainer plugin) {
+            this.instance = instance;
+            this.method = method;
+            this.plugin = plugin;
+        }
+
+        @Override
+        public void cancel() {
+            // Do nothing, handled once elsewhere
+        }
+
+        @Override
+        public List<Metrics> getKnownMetricsInstances() {
+            return new ArrayList<>();
+        }
+
+        @Override
+        public JsonObject getPluginData() {
+            try {
+                return (JsonObject) method.invoke(instance);
+            } catch (ClassCastException | IllegalAccessException | InvocationTargetException e) {
             }
+            return null;
+        }
+
+        @Override
+        public PluginContainer getPluginContainer() {
+            return plugin;
+        }
+
+        @Override
+        public int getRevision() {
+            return 0;
+        }
+
+        @Override
+        public void linkMetrics(Metrics metrics) {
+            // Do nothing
         }
     }
 
-    // The version of this bStats class
+    static {
+        // Do not touch. Needs to always be in this class.
+        final String defaultName = "org:bstats:sponge:Metrics".replace(":", ".");
+        if (!Metrics.class.getName().equals(defaultName)) {
+            throw new IllegalStateException("bStats Metrics interface has been relocated or renamed and will not be run!");
+        }
+        if (!Metrics2.class.getName().equals(defaultName + "2")) {
+            throw new IllegalStateException("bStats Metrics2 class has been relocated or renamed and will not be run!");
+        }
+    }
+
+    // The version of bStats info being sent
     public static final int B_STATS_VERSION = 1;
 
+    // The version of this bStats class
+    public static final int B_STATS_CLASS_REVISION = 2;
+
     // The url to which the data is sent
-    private static final String URL = "https://bStats.org/submitData/bungeecord";
+    private static final String URL = "https://bStats.org/submitData/sponge";
+
+    // The logger
+    private Logger logger;
 
     // The plugin
-    private final Plugin plugin;
-
-    // Is bStats enabled on this server?
-    private boolean enabled;
+    private final PluginContainer plugin;
 
     // The uuid of the server
     private String serverUUID;
@@ -78,67 +137,88 @@ public class Metrics {
     private static boolean logResponseStatusText;
 
     // A list with all known metrics class objects including this one
-    private static final List<Object> knownMetricsInstances = new ArrayList<>();
+    private final List<Metrics> knownMetricsInstances = new CopyOnWriteArrayList<>();
 
     // A list with all custom charts
     private final List<CustomChart> charts = new ArrayList<>();
 
-    public Metrics(Plugin plugin) {
-        this.plugin = plugin;
+    // The config path
+    private Path configDir;
 
+    // The list of instances from the bStats 1 instance's that started first
+    private List<Object> oldInstances;
+
+    // The timer task
+    private TimerTask timerTask;
+
+    // The constructor is not meant to be called by the user.
+    // The instance is created using Dependency Injection (https://docs.spongepowered.org/master/en/plugin/injection.html)
+    @Inject
+    private Metrics2(PluginContainer plugin, Logger logger, @ConfigDir(sharedRoot = true) Path configDir) {
+        this.plugin = plugin;
+        this.logger = logger;
+        this.configDir = configDir;
+
+        Sponge.getEventManager().registerListeners(plugin, this);
+    }
+
+    @Listener
+    public void startup(GamePreInitializationEvent event) {
         try {
             loadConfig();
         } catch (IOException e) {
             // Failed to load configuration
-            plugin.getLogger().log(Level.WARNING, "Failed to load bStats config!", e);
+            logger.warn("Failed to load bStats config!", e);
             return;
         }
 
-        // We are not allowed to send data about this server :(
-        if (!enabled) {
-            return;
-        }
-
-        Class<?> usedMetricsClass = getFirstBStatsClass();
-        if (usedMetricsClass == null) {
-            // Failed to get first metrics class
-            return;
-        }
-        if (usedMetricsClass == getClass()) {
-            // We are the first! :)
-            linkMetrics(this);
-            startSubmitting();
+        if (Sponge.getServiceManager().isRegistered(Metrics.class)) {
+            Metrics provider = Sponge.getServiceManager().provideUnchecked(Metrics.class);
+            provider.linkMetrics(this);
         } else {
-            // We aren't the first so we link to the first metrics class
-            try {
-                usedMetricsClass.getMethod("linkMetrics", Object.class).invoke(null,this);
-            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-                if (logFailedRequests) {
-                    plugin.getLogger().log(Level.WARNING, "Failed to link to first metrics class " + usedMetricsClass.getName() + "!", e);
-                }
-            }
+            Sponge.getServiceManager().setProvider(plugin.getInstance().get(), Metrics.class, this);
+            this.linkMetrics(this);
+            startSubmitting();
         }
     }
 
-    /**
-     * Checks if bStats is enabled.
-     *
-     * @return Whether bStats is enabled or not.
-     */
-    public boolean isEnabled() {
-        return enabled;
+    @Override
+    public void cancel() {
+        if (timerTask != null) {
+            timerTask.cancel();
+        }
+    }
+
+    @Override
+    public List<Metrics> getKnownMetricsInstances() {
+        return knownMetricsInstances;
+    }
+
+    @Override
+    public PluginContainer getPluginContainer() {
+        return plugin;
+    }
+
+    @Override
+    public int getRevision() {
+        return B_STATS_CLASS_REVISION;
     }
 
     /**
-     * Adds a custom chart.
+     * Links a bStats 1 metrics class with this instance.
      *
-     * @param chart The chart to add.
+     * @param metrics An object of the metrics class to link.
      */
-    public void addCustomChart(CustomChart chart) {
-        if (chart == null) {
-            plugin.getLogger().log(Level.WARNING, "Chart cannot be null");
+    private void linkOldMetrics(Object metrics) {
+        try {
+            Field field = metrics.getClass().getDeclaredField("plugin");
+            field.setAccessible(true);
+            PluginContainer plugin = (PluginContainer) field.get(metrics);
+            Method method = metrics.getClass().getMethod("getPluginData");
+            linkMetrics(new OutdatedInstance(metrics, method, plugin));
+        } catch (NoSuchFieldException | IllegalAccessException |NoSuchMethodException e) {
+            // Move on, this bStats is broken
         }
-        charts.add(chart);
     }
 
     /**
@@ -147,29 +227,37 @@ public class Metrics {
      *
      * @param metrics An object of the metrics class to link.
      */
-    public static void linkMetrics(Object metrics) {
+    @Override
+    public void linkMetrics(Metrics metrics) {
         knownMetricsInstances.add(metrics);
     }
 
     /**
-     * Gets the plugin specific data.
-     * This method is called using Reflection.
+     * Adds a custom chart.
      *
-     * @return The plugin specific data.
+     * @param chart The chart to add.
      */
+    public void addCustomChart(CustomChart chart) {
+        Validate.notNull(chart, "Chart cannot be null");
+        charts.add(chart);
+    }
+
+    @Override
     public JsonObject getPluginData() {
         JsonObject data = new JsonObject();
 
-        String pluginName = plugin.getDescription().getName();
-        String pluginVersion = plugin.getDescription().getVersion();
+        String pluginName = plugin.getName();
+        String pluginVersion = plugin.getVersion().orElse("unknown");
+        int revision = getRevision();
 
         data.addProperty("pluginName", pluginName);
         data.addProperty("pluginVersion", pluginVersion);
+        data.addProperty("metricsRevision", revision);
 
         JsonArray customCharts = new JsonArray();
         for (CustomChart customChart : charts) {
             // Add the data of the custom charts
-            JsonObject chart = customChart.getRequestJsonObject(plugin.getLogger(), logFailedRequests);
+            JsonObject chart = customChart.getRequestJsonObject(logger, logFailedRequests);
             if (chart == null) { // If the chart is null, we skip it
                 continue;
             }
@@ -181,17 +269,106 @@ public class Metrics {
     }
 
     private void startSubmitting() {
-        plugin.getProxy().getScheduler().schedule(plugin, new Runnable() {
+        // bStats 1 cleanup. Runs once.
+        try {
+            Path configPath = configDir.resolve("bStats");
+            configPath.toFile().mkdirs();
+            String className = readFile(new File(configPath.toFile(), "temp.txt"));
+            if (className != null) {
+                try {
+                    // Let's check if a class with the given name exists.
+                    Class<?> clazz = Class.forName(className);
+
+                    // Time to eat it up!
+                    Field instancesField = clazz.getDeclaredField("knownMetricsInstances");
+                    instancesField.setAccessible(true);
+                    oldInstances = (List<Object>) instancesField.get(null);
+                    for (Object instance : oldInstances) {
+                        linkOldMetrics(instance); // Om nom nom
+                    }
+                    oldInstances.clear(); // Look at me. I'm the bStats now.
+
+                    // Cancel its timer task
+                    // bStats for Sponge version 1 did not expose its timer task - gotta go find it!
+                    Map<Thread, StackTraceElement[]> threadSet = Thread.getAllStackTraces();
+                    for (Map.Entry<Thread, StackTraceElement[]> entry : threadSet.entrySet()) {
+                        try {
+                            if (entry.getKey().getName().startsWith("Timer")) {
+                                Field timerThreadField = entry.getKey().getClass().getDeclaredField("queue");
+                                timerThreadField.setAccessible(true);
+                                Object taskQueue = timerThreadField.get(entry.getKey());
+
+                                Field taskQueueField = taskQueue.getClass().getDeclaredField("queue");
+                                taskQueueField.setAccessible(true);
+                                Object[] tasks = (Object[]) taskQueueField.get(taskQueue);
+                                for (Object task : tasks) {
+                                    if (task == null) {
+                                        continue;
+                                    }
+                                    if (task.getClass().getName().startsWith(clazz.getName())) {
+                                        ((TimerTask) task).cancel();
+                                    }
+                                }
+                            }
+                        } catch (Exception e) {
+                        }
+                    }
+                } catch (ReflectiveOperationException ignored) {
+                }
+            }
+        } catch (IOException e) {
+        }
+
+        // We use a timer cause want to be independent from the server tps
+        final Timer timer = new Timer(true);
+        timerTask = new TimerTask() {
             @Override
             public void run() {
-            // The data collection is async, as well as sending the data
-                // Bungeecord does not have a main thread, everything is async
-                submitData();
+                // Catch any stragglers from inexplicable post-server-load plugin loading of outdated bStats
+                for (Object instance : oldInstances) {
+                    linkOldMetrics(instance); // Om nom nom
+                }
+                oldInstances.clear(); // Look at me. I'm the bStats now.
+                // The data collection (e.g. for custom graphs) is done sync
+                // Don't be afraid! The connection to the bStats server is still async, only the stats collection is sync ;)
+                Scheduler scheduler = Sponge.getScheduler();
+                Task.Builder taskBuilder = scheduler.createTaskBuilder();
+                taskBuilder.execute(() -> submitData()).submit(plugin);
             }
-        }, 2, 30, TimeUnit.MINUTES);
-        // Submit the data every 30 minutes, first time after 2 minutes to give other plugins enough time to start
+        };
+        timer.scheduleAtFixedRate(timerTask, 1000 * 60 * 5, 1000 * 60 * 30);
+        // Submit the data every 30 minutes, first time after 5 minutes to give other plugins enough time to start
         // WARNING: Changing the frequency has no effect but your plugin WILL be blocked/deleted!
         // WARNING: Just don't do it!
+
+        // Let's log if things are enabled or not, once at startup:
+        List<String> enabled = new ArrayList<>();
+        List<String> disabled = new ArrayList<>();
+        for (Metrics metrics : knownMetricsInstances) {
+            if (Sponge.getMetricsConfigManager().areMetricsEnabled(metrics.getPluginContainer())) {
+                enabled.add(metrics.getPluginContainer().getName());
+            } else {
+                disabled.add(metrics.getPluginContainer().getName());
+            }
+        }
+        StringBuilder builder = new StringBuilder().append(System.lineSeparator());
+        builder.append("bStats metrics is present in ").append((enabled.size() + disabled.size())).append(" plugins on this server.");
+        builder.append(System.lineSeparator());
+        if (enabled.isEmpty()) {
+            builder.append("Presently, none of them are allowed to send data.").append(System.lineSeparator());
+        } else {
+            builder.append("Presently, the following ").append(enabled.size()).append(" plugins are allowed to send data:").append(System.lineSeparator());
+            builder.append(enabled.toString()).append(System.lineSeparator());
+        }
+        if (disabled.isEmpty()) {
+            builder.append("None of them have data sending disabled.");
+            builder.append(System.lineSeparator());
+        } else {
+            builder.append("Presently, the following ").append(disabled.size()).append(" plugins are not allowed to send data:").append(System.lineSeparator());
+            builder.append(disabled.toString()).append(System.lineSeparator());
+        }
+        builder.append("To change the enabled/disabled state of any bStats use in a plugin, visit the Sponge config!");
+        logger.info(builder.toString());
     }
 
     /**
@@ -201,11 +378,11 @@ public class Metrics {
      */
     private JsonObject getServerData() {
         // Minecraft specific data
-        int playerAmount = plugin.getProxy().getOnlineCount();
-        playerAmount = playerAmount > 500 ? 500 : playerAmount;
-        int onlineMode = plugin.getProxy().getConfig().isOnlineMode() ? 1 : 0;
-        String bungeecordVersion = plugin.getProxy().getVersion();
-        int managedServers = plugin.getProxy().getServers().size();
+        int playerAmount = Sponge.getServer().getOnlinePlayers().size();
+        playerAmount = playerAmount > 200 ? 200 : playerAmount;
+        int onlineMode = Sponge.getServer().getOnlineMode() ? 1 : 0;
+        String minecraftVersion = Sponge.getGame().getPlatform().getMinecraftVersion().getName();
+        String spongeImplementation = Sponge.getPlatform().getContainer(Platform.Component.IMPLEMENTATION).getName();
 
         // OS/Java specific data
         String javaVersion = System.getProperty("java.version");
@@ -219,9 +396,9 @@ public class Metrics {
         data.addProperty("serverUUID", serverUUID);
 
         data.addProperty("playerAmount", playerAmount);
-        data.addProperty("managedServers", managedServers);
         data.addProperty("onlineMode", onlineMode);
-        data.addProperty("bungeecordVersion", bungeecordVersion);
+        data.addProperty("minecraftVersion", minecraftVersion);
+        data.addProperty("spongeImplementation", spongeImplementation);
 
         data.addProperty("javaVersion", javaVersion);
         data.addProperty("osName", osName);
@@ -238,28 +415,36 @@ public class Metrics {
     private void submitData() {
         final JsonObject data = getServerData();
 
-        final JsonArray pluginData = new JsonArray();
+        JsonArray pluginData = new JsonArray();
         // Search for all other bStats Metrics classes to get their plugin data
-        for (Object metrics : knownMetricsInstances) {
-            try {
-                Object plugin = metrics.getClass().getMethod("getPluginData").invoke(metrics);
-                if (plugin instanceof JsonObject) {
-                    pluginData.add((JsonObject) plugin);
-                }
-            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) { }
+        for (Metrics metrics : knownMetricsInstances) {
+            if (!Sponge.getMetricsConfigManager().areMetricsEnabled(metrics.getPluginContainer())) {
+                continue;
+            }
+            JsonObject plugin = metrics.getPluginData();
+            if (plugin != null) {
+                pluginData.add(plugin);
+            }
+        }
+
+        if (pluginData.size() == 0) {
+            return; // All plugins disabled, so we don't send anything
         }
 
         data.add("plugins", pluginData);
 
-        try {
-            // Send the data
-            sendData(plugin, data);
-        } catch (Exception e) {
-            // Something went wrong! :(
-            if (logFailedRequests) {
-                plugin.getLogger().log(Level.WARNING, "Could not submit plugin stats!", e);
+        // Create a new thread for the connection to the bStats server
+        new Thread(() ->  {
+            try {
+                // Send the data
+                sendData(logger, data);
+            } catch (Exception e) {
+                // Something went wrong! :(
+                if (logFailedRequests) {
+                    logger.warn("Could not submit plugin stats!", e);
+                }
             }
-        }
+        }).start();
     }
 
     /**
@@ -268,58 +453,66 @@ public class Metrics {
      * @throws IOException If something did not work :(
      */
     private void loadConfig() throws IOException {
-        Path configPath = plugin.getDataFolder().toPath().getParent().resolve("bStats");
+        Path configPath = configDir.resolve("bStats");
         configPath.toFile().mkdirs();
-        File configFile = new File(configPath.toFile(), "config.yml");
+        File configFile = new File(configPath.toFile(), "config.conf");
+        HoconConfigurationLoader configurationLoader = HoconConfigurationLoader.builder().setFile(configFile).build();
+        CommentedConfigurationNode node;
         if (!configFile.exists()) {
-            writeFile(configFile,
-                    "#bStats collects some data for plugin authors like how many servers are using their plugins.",
-                    "#To honor their work, you should not disable it.",
-                    "#This has nearly no effect on the server performance!",
-                    "#Check out https://bStats.org/ to learn more :)",
-                    "enabled: true",
-                    "serverUuid: \"" + UUID.randomUUID().toString() + "\"",
-                    "logFailedRequests: false",
-                    "logSentData: false",
-                    "logResponseStatusText: false");
-        }
+            configFile.createNewFile();
+            node = configurationLoader.load();
 
-        Configuration configuration = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
+            // Add default values
+            node.getNode("enabled").setValue(false);
+            // Every server gets it's unique random id.
+            node.getNode("serverUuid").setValue(UUID.randomUUID().toString());
+            // Should failed request be logged?
+            node.getNode("logFailedRequests").setValue(false);
+            // Should the sent data be logged?
+            node.getNode("logSentData").setValue(false);
+            // Should the response text be logged?
+            node.getNode("logResponseStatusText").setValue(false);
+
+            node.getNode("enabled").setComment(
+                    "Enabling bStats in this file is deprecated. At least one of your plugins now uses the\n" +
+                            "Sponge config to control bStats. Leave this value as you want it to be for outdated plugins,\n" +
+                            "but look there for further control");
+            // Add information about bStats
+            node.getNode("serverUuid").setComment(
+                    "bStats collects some data for plugin authors like how many servers are using their plugins.\n" +
+                            "To control whether this is enabled or disabled, see the Sponge configuration file.\n" +
+                            "Check out https://bStats.org/ to learn more :)"
+            );
+            node.getNode("configVersion").setValue(2);
+
+            configurationLoader.save(node);
+        } else {
+            node = configurationLoader.load();
+
+            if (!node.getNode("configVersion").isVirtual()) {
+
+                node.getNode("configVersion").setValue(2);
+
+                node.getNode("enabled").setComment(
+                        "Enabling bStats in this file is deprecated. At least one of your plugins now uses the\n" +
+                                "Sponge config to control bStats. Leave this value as you want it to be for outdated plugins,\n" +
+                                "but look there for further control");
+
+                node.getNode("serverUuid").setComment(
+                        "bStats collects some data for plugin authors like how many servers are using their plugins.\n" +
+                                "To control whether this is enabled or disabled, see the Sponge configuration file.\n" +
+                                "Check out https://bStats.org/ to learn more :)"
+                );
+
+                configurationLoader.save(node);
+            }
+        }
 
         // Load configuration
-        enabled = configuration.getBoolean("enabled", true);
-        serverUUID = configuration.getString("serverUuid");
-        logFailedRequests = configuration.getBoolean("logFailedRequests", false);
-        logSentData = configuration.getBoolean("logSentData", false);
-        logResponseStatusText = configuration.getBoolean("logResponseStatusText", false);
-    }
-
-    /**
-     * Gets the first bStat Metrics class.
-     *
-     * @return The first bStats metrics class.
-     */
-    private Class<?> getFirstBStatsClass() {
-        Path configPath = plugin.getDataFolder().toPath().getParent().resolve("bStats");
-        configPath.toFile().mkdirs();
-        File tempFile = new File(configPath.toFile(), "temp.txt");
-
-        try {
-            String className = readFile(tempFile);
-            if (className != null) {
-                try {
-                    // Let's check if a class with the given name exists.
-                    return Class.forName(className);
-                } catch (ClassNotFoundException ignored) { }
-            }
-            writeFile(tempFile, getClass().getName());
-            return getClass();
-        } catch (IOException e) {
-            if (logFailedRequests) {
-                plugin.getLogger().log(Level.WARNING, "Failed to get first bStats class!", e);
-            }
-            return null;
-        }
+        serverUUID = node.getNode("serverUuid").getString();
+        logFailedRequests = node.getNode("logFailedRequests").getBoolean(false);
+        logSentData = node.getNode("logSentData").getBoolean(false);
+        logResponseStatusText = node.getNode("logResponseStatusText").getBoolean(false);
     }
 
     /**
@@ -342,42 +535,17 @@ public class Metrics {
     }
 
     /**
-     * Writes a String to a file. It also adds a note for the user,
-     *
-     * @param file The file to write to. Cannot be null.
-     * @param lines The lines to write.
-     * @throws IOException If something did not work :(
-     */
-    private void writeFile(File file, String... lines) throws IOException {
-        if (!file.exists()) {
-            file.createNewFile();
-        }
-        try (
-                FileWriter fileWriter = new FileWriter(file);
-                BufferedWriter bufferedWriter = new BufferedWriter(fileWriter)
-        ) {
-            for (String line : lines) {
-                bufferedWriter.write(line);
-                bufferedWriter.newLine();
-            }
-        }
-    }
-
-    /**
      * Sends the data to the bStats server.
      *
-     * @param plugin Any plugin. It's just used to get a logger instance.
+     * @param logger The used logger.
      * @param data The data to send.
      * @throws Exception If the request failed.
      */
-    private static void sendData(Plugin plugin, JsonObject data) throws Exception {
-        if (data == null) {
-            throw new IllegalArgumentException("Data cannot be null");
-        }
+    private static void sendData(Logger logger, JsonObject data) throws Exception {
+        Validate.notNull(data, "Data cannot be null");
         if (logSentData) {
-            plugin.getLogger().info("Sending data to bStats: " + data.toString());
+            logger.info("Sending data to bStats: {}", data.toString());
         }
-
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();
 
         // Compress the data to save bandwidth
@@ -409,7 +577,7 @@ public class Metrics {
         }
         bufferedReader.close();
         if (logResponseStatusText) {
-            plugin.getLogger().info("Sent data to bStats and received response: " + builder.toString());
+            logger.info("Sent data to bStats and received response: {}", builder.toString());
         }
     }
 
@@ -430,7 +598,6 @@ public class Metrics {
         gzip.close();
         return outputStream.toByteArray();
     }
-
 
     /**
      * Represents a custom chart.
@@ -464,7 +631,7 @@ public class Metrics {
                 chart.add("data", data);
             } catch (Throwable t) {
                 if (logFailedRequests) {
-                    logger.log(Level.WARNING, "Failed to get data for custom chart with id " + chartId, t);
+                    logger.warn("Failed to get data for custom chart with id {}", chartId, t);
                 }
                 return null;
             }
