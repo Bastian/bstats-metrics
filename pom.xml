@@ -9,7 +9,7 @@
     <version>1.4-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>BStats-Metrics</name>
+    <name>bStats-Metrics</name>
     <description>The BStats metrics classes for various server implementations</description>
     <inceptionYear>2017</inceptionYear>
     <url>https://bstats.org/</url>

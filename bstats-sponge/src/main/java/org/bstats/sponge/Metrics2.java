@@ -528,7 +528,7 @@ public class Metrics2 implements Metrics {
      * Sends the data to the bStats server.
      *
      * @param logger The used logger.
-     * @param data   The data to send.
+     * @param data The data to send.
      * @throws Exception If the request failed.
      */
     private static void sendData(Logger logger, JsonObject data) throws Exception {
@@ -642,7 +642,7 @@ public class Metrics2 implements Metrics {
         /**
          * Class constructor.
          *
-         * @param chartId  The id of the chart.
+         * @param chartId The id of the chart.
          * @param callable The callable which is used to request the chart data.
          */
         public SimplePie(String chartId, Callable<String> callable) {
@@ -673,7 +673,7 @@ public class Metrics2 implements Metrics {
         /**
          * Class constructor.
          *
-         * @param chartId  The id of the chart.
+         * @param chartId The id of the chart.
          * @param callable The callable which is used to request the chart data.
          */
         public AdvancedPie(String chartId, Callable<Map<String, Integer>> callable) {
@@ -717,7 +717,7 @@ public class Metrics2 implements Metrics {
         /**
          * Class constructor.
          *
-         * @param chartId  The id of the chart.
+         * @param chartId The id of the chart.
          * @param callable The callable which is used to request the chart data.
          */
         public DrilldownPie(String chartId, Callable<Map<String, Map<String, Integer>>> callable) {
@@ -766,7 +766,7 @@ public class Metrics2 implements Metrics {
         /**
          * Class constructor.
          *
-         * @param chartId  The id of the chart.
+         * @param chartId The id of the chart.
          * @param callable The callable which is used to request the chart data.
          */
         public SingleLineChart(String chartId, Callable<Integer> callable) {
@@ -798,7 +798,7 @@ public class Metrics2 implements Metrics {
         /**
          * Class constructor.
          *
-         * @param chartId  The id of the chart.
+         * @param chartId The id of the chart.
          * @param callable The callable which is used to request the chart data.
          */
         public MultiLineChart(String chartId, Callable<Map<String, Integer>> callable) {
@@ -843,7 +843,7 @@ public class Metrics2 implements Metrics {
         /**
          * Class constructor.
          *
-         * @param chartId  The id of the chart.
+         * @param chartId The id of the chart.
          * @param callable The callable which is used to request the chart data.
          */
         public SimpleBarChart(String chartId, Callable<Map<String, Integer>> callable) {
@@ -881,7 +881,7 @@ public class Metrics2 implements Metrics {
         /**
          * Class constructor.
          *
-         * @param chartId  The id of the chart.
+         * @param chartId The id of the chart.
          * @param callable The callable which is used to request the chart data.
          */
         public AdvancedBarChart(String chartId, Callable<Map<String, int[]>> callable) {

@@ -505,7 +505,7 @@ public class MetricsLite2 implements Metrics {
      * Sends the data to the bStats server.
      *
      * @param logger The used logger.
-     * @param data   The data to send.
+     * @param data The data to send.
      * @throws Exception If the request failed.
      */
     private static void sendData(Logger logger, JsonObject data) throws Exception {

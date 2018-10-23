@@ -107,8 +107,7 @@ public class MetricsLite {
             ).copyDefaults(true);
             try {
                 config.save(configFile);
-            } catch (IOException ignored) {
-            }
+            } catch (IOException ignored) { }
         }
 
         // Load the data
@@ -123,8 +122,7 @@ public class MetricsLite {
                     service.getField("B_STATS_VERSION"); // Our identifier :)
                     found = true; // We aren't the first
                     break;
-                } catch (NoSuchFieldException ignored) {
-                }
+                } catch (NoSuchFieldException ignored) { }
             }
             // Register our service
             Bukkit.getServicesManager().register(MetricsLite.class, this, plugin, ServicePriority.Normal);
@@ -158,12 +156,7 @@ public class MetricsLite {
                 }
                 // Nevertheless we want our code to run in the Bukkit main thread, so we have to use the Bukkit scheduler
                 // Don't be afraid! The connection to the bStats server is still async, only the stats collection is sync ;)
-                Bukkit.getScheduler().runTask(plugin, new Runnable() {
-                    @Override
-                    public void run() {
-                        submitData();
-                    }
-                });
+                Bukkit.getScheduler().runTask(plugin, () -> submitData());
             }
         }, 1000 * 60 * 5, 1000 * 60 * 30);
         // Submit the data every 30 minutes, first time after 5 minutes to give other plugins enough time to start
@@ -254,8 +247,7 @@ public class MetricsLite {
                     } catch (NullPointerException | NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {
                     }
                 }
-            } catch (NoSuchFieldException ignored) {
-            }
+            } catch (NoSuchFieldException ignored) { }
         }
 
         data.put("plugins", pluginData);
@@ -281,7 +273,7 @@ public class MetricsLite {
      * Sends the data to the bStats server.
      *
      * @param plugin Any plugin. It's just used to get a logger instance.
-     * @param data   The data to send.
+     * @param data The data to send.
      * @throws Exception If the request failed.
      */
     private static void sendData(Plugin plugin, JSONObject data) throws Exception {

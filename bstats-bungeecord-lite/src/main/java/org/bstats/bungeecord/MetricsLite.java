@@ -207,8 +207,7 @@ public class MetricsLite {
                 if (plugin instanceof JsonObject) {
                     pluginData.add((JsonObject) plugin);
                 }
-            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {
-            }
+            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) { }
         }
 
         data.add("plugins", pluginData);
@@ -272,8 +271,7 @@ public class MetricsLite {
                 try {
                     // Let's check if a class with the given name exists.
                     return Class.forName(className);
-                } catch (ClassNotFoundException ignored) {
-                }
+                } catch (ClassNotFoundException ignored) { }
             }
             writeFile(tempFile, getClass().getName());
             return getClass();
@@ -307,7 +305,7 @@ public class MetricsLite {
     /**
      * Writes a String to a file. It also adds a note for the user,
      *
-     * @param file  The file to write to. Cannot be null.
+     * @param file The file to write to. Cannot be null.
      * @param lines The lines to write.
      * @throws IOException If something did not work :(
      */
@@ -330,7 +328,7 @@ public class MetricsLite {
      * Sends the data to the bStats server.
      *
      * @param plugin Any plugin. It's just used to get a logger instance.
-     * @param data   The data to send.
+     * @param data The data to send.
      * @throws Exception If the request failed.
      */
     private static void sendData(Plugin plugin, JsonObject data) throws Exception {
