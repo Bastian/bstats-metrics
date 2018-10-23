@@ -10,7 +10,7 @@
     <packaging>pom</packaging>
 
     <name>bStats-Metrics</name>
-    <description>The BStats metrics classes for various server implementations</description>
+    <description>The bStats metrics classes for various server implementations</description>
     <inceptionYear>2017</inceptionYear>
     <url>https://bstats.org/</url>
 

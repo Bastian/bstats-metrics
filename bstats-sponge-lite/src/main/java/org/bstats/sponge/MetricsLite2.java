@@ -65,8 +65,7 @@ public class MetricsLite2 implements Metrics {
         public JsonObject getPluginData() {
             try {
                 return (JsonObject) method.invoke(instance);
-            } catch (ClassCastException | IllegalAccessException | InvocationTargetException ignored) {
-            }
+            } catch (ClassCastException | IllegalAccessException | InvocationTargetException ignored) { }
             return null;
         }
 
@@ -277,14 +276,11 @@ public class MetricsLite2 implements Metrics {
                                     }
                                 }
                             }
-                        } catch (Exception ignored) {
-                        }
+                        } catch (Exception ignored) { }
                     }
-                } catch (ReflectiveOperationException ignored) {
-                }
+                } catch (ReflectiveOperationException ignored) { }
             }
-        } catch (IOException ignored) {
-        }
+        } catch (IOException ignored) { }
 
         // We use a timer cause want to be independent from the server tps
         final Timer timer = new Timer(true);
