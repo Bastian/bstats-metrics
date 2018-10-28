@@ -1,8 +1,6 @@
 import org.bstats.bukkit.Metrics;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.concurrent.Callable;
-
 public class ExamplePlugin extends JavaPlugin {
 
     @Override
@@ -11,15 +9,7 @@ public class ExamplePlugin extends JavaPlugin {
         Metrics metrics = new Metrics(this);
 
         // Optional: Add custom charts
-        metrics.addCustomChart(new Metrics.SimplePie("chart_id", new Callable<String>() {
-            @Override
-            public String call() throws Exception {
-                return "My value";
-            }
-        }));
-
-        // If you use Java 8 you can use Lambdas:
-        // metrics.addCustomChart(new Metrics.SimplePie("chart_id", () -> "My value"));
+        metrics.addCustomChart(new Metrics.SimplePie("chart_id", () -> "My value"));
     }
 
 }
