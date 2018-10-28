@@ -18,36 +18,26 @@ import org.spongepowered.api.scheduler.Scheduler;
 import org.spongepowered.api.scheduler.Task;
 
 import javax.net.ssl.HttpsURLConnection;
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.zip.GZIPOutputStream;
 
 /**
  * bStats collects some data for plugin authors.
- *
+ * <p>
  * Check out https://bStats.org/ to learn more about bStats!
- *
+ * <p>
  * DO NOT modify any of this class. Access it from your own plugin ONLY.
  */
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class Metrics2 implements Metrics {
     /**
      * Internal class for storing information about old bStats instances.
@@ -77,8 +67,7 @@ public class Metrics2 implements Metrics {
         public JsonObject getPluginData() {
             try {
                 return (JsonObject) method.invoke(instance);
-            } catch (ClassCastException | IllegalAccessException | InvocationTargetException e) {
-            }
+            } catch (ClassCastException | IllegalAccessException | InvocationTargetException ignored) { }
             return null;
         }
 
@@ -216,7 +205,7 @@ public class Metrics2 implements Metrics {
             PluginContainer plugin = (PluginContainer) field.get(metrics);
             Method method = metrics.getClass().getMethod("getPluginData");
             linkMetrics(new OutdatedInstance(metrics, method, plugin));
-        } catch (NoSuchFieldException | IllegalAccessException |NoSuchMethodException e) {
+        } catch (NoSuchFieldException | IllegalAccessException | NoSuchMethodException e) {
             // Move on, this bStats is broken
         }
     }
@@ -310,14 +299,11 @@ public class Metrics2 implements Metrics {
                                     }
                                 }
                             }
-                        } catch (Exception e) {
-                        }
+                        } catch (Exception ignored) { }
                     }
-                } catch (ReflectiveOperationException ignored) {
-                }
+                } catch (ReflectiveOperationException ignored) { }
             }
-        } catch (IOException e) {
-        }
+        } catch (IOException ignored) { }
 
         // We use a timer cause want to be independent from the server tps
         final Timer timer = new Timer(true);
@@ -434,7 +420,7 @@ public class Metrics2 implements Metrics {
         data.add("plugins", pluginData);
 
         // Create a new thread for the connection to the bStats server
-        new Thread(() ->  {
+        new Thread(() -> {
             try {
                 // Send the data
                 sendData(logger, data);
@@ -528,7 +514,7 @@ public class Metrics2 implements Metrics {
         }
         try (
                 FileReader fileReader = new FileReader(file);
-                BufferedReader bufferedReader =  new BufferedReader(fileReader);
+                BufferedReader bufferedReader = new BufferedReader(fileReader);
         ) {
             return bufferedReader.readLine();
         }
@@ -594,7 +580,7 @@ public class Metrics2 implements Metrics {
         }
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         GZIPOutputStream gzip = new GZIPOutputStream(outputStream);
-        gzip.write(str.getBytes("UTF-8"));
+        gzip.write(str.getBytes(StandardCharsets.UTF_8));
         gzip.close();
         return outputStream.toByteArray();
     }
