@@ -146,7 +146,7 @@ public class Metrics2 implements Metrics {
     private Path configDir;
 
     // The list of instances from the bStats 1 instance's that started first
-    private List<Object> oldInstances;
+    private List<Object> oldInstances = new ArrayList<>();
 
     // The timer task
     private TimerTask timerTask;
