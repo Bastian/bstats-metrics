@@ -113,6 +113,8 @@ public class MetricsLite {
         // Load the data
         serverUUID = config.getString("serverUuid");
         logFailedRequests = config.getBoolean("logFailedRequests", false);
+        logSentData = config.getBoolean("logSentData", false);
+        logResponseStatusText = config.getBoolean("logResponseStatusText", false);
         enabled = config.getBoolean("enabled", true);
         if (enabled) {
             boolean found = false;
