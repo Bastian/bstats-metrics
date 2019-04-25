@@ -1,13 +1,14 @@
 package org.bstats.bukkit;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.ServicePriority;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
 
 import javax.net.ssl.HttpsURLConnection;
 import java.io.*;
@@ -170,16 +171,15 @@ public class MetricsLite {
      *
      * @return The plugin specific data.
      */
-    public JSONObject getPluginData() {
-        JSONObject data = new JSONObject();
+    public JsonObject getPluginData() {
+        JsonObject data = new JsonObject();
 
         String pluginName = plugin.getDescription().getName();
         String pluginVersion = plugin.getDescription().getVersion();
 
-        data.put("pluginName", pluginName); // Append the name of the plugin
-        data.put("pluginVersion", pluginVersion); // Append the version of the plugin
-        JSONArray customCharts = new JSONArray();
-        data.put("customCharts", customCharts);
+        data.addProperty("pluginName", pluginName); // Append the name of the plugin
+        data.addProperty("pluginVersion", pluginVersion); // Append the version of the plugin
+        data.add("customCharts", new JsonArray());
 
         return data;
     }
@@ -189,7 +189,7 @@ public class MetricsLite {
      *
      * @return The server specific data.
      */
-    private JSONObject getServerData() {
+    private JsonObject getServerData() {
         // Minecraft specific data
         int playerAmount;
         try {
@@ -212,19 +212,19 @@ public class MetricsLite {
         String osVersion = System.getProperty("os.version");
         int coreCount = Runtime.getRuntime().availableProcessors();
 
-        JSONObject data = new JSONObject();
+        JsonObject data = new JsonObject();
 
-        data.put("serverUUID", serverUUID);
+        data.addProperty("serverUUID", serverUUID);
 
-        data.put("playerAmount", playerAmount);
-        data.put("onlineMode", onlineMode);
-        data.put("bukkitVersion", bukkitVersion);
+        data.addProperty("playerAmount", playerAmount);
+        data.addProperty("onlineMode", onlineMode);
+        data.addProperty("bukkitVersion", bukkitVersion);
 
-        data.put("javaVersion", javaVersion);
-        data.put("osName", osName);
-        data.put("osArch", osArch);
-        data.put("osVersion", osVersion);
-        data.put("coreCount", coreCount);
+        data.addProperty("javaVersion", javaVersion);
+        data.addProperty("osName", osName);
+        data.addProperty("osArch", osArch);
+        data.addProperty("osVersion", osVersion);
+        data.addProperty("coreCount", coreCount);
 
         return data;
     }
@@ -233,9 +233,9 @@ public class MetricsLite {
      * Collects the data and sends it afterwards.
      */
     private void submitData() {
-        final JSONObject data = getServerData();
+        final JsonObject data = getServerData();
 
-        JSONArray pluginData = new JSONArray();
+        JsonArray pluginData = new JsonArray();
         // Search for all other bStats Metrics classes to get their plugin data
         for (Class<?> service : Bukkit.getServicesManager().getKnownServices()) {
             try {
@@ -243,14 +243,34 @@ public class MetricsLite {
 
                 for (RegisteredServiceProvider<?> provider : Bukkit.getServicesManager().getRegistrations(service)) {
                     try {
-                        pluginData.add(provider.getService().getMethod("getPluginData").invoke(provider.getProvider()));
+                        Object plugin = provider.getService().getMethod("getPluginData").invoke(provider.getProvider());
+                        if (plugin instanceof JsonObject) {
+                            pluginData.add((JsonObject) plugin);
+                        } else { // old bstats version compatibility
+                            try {
+                                Class<?> jsonObjectJsonSimple = Class.forName("org.json.simple.JSONObject");
+                                if (plugin.getClass().isAssignableFrom(jsonObjectJsonSimple)) {
+                                    Method jsonStringGetter = jsonObjectJsonSimple.getDeclaredMethod("toJSONString");
+                                    jsonStringGetter.setAccessible(true);
+                                    String jsonString = (String) jsonStringGetter.invoke(plugin);
+                                    JsonObject object = new JsonParser().parse(jsonString).getAsJsonObject();
+                                    pluginData.add(object);
+                                }
+                            } catch (ClassNotFoundException e) {
+                                // minecraft version 1.14+
+                                if (logFailedRequests) {
+                                    this.plugin.getLogger().log(Level.SEVERE, "Encountered unexpected exception ", e);
+                                }
+                                continue; // continue looping since we cannot do any other thing.
+                            }
+                        }
                     } catch (NullPointerException | NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored) {
                     }
                 }
             } catch (NoSuchFieldException ignored) { }
         }
 
-        data.put("plugins", pluginData);
+        data.add("plugins", pluginData);
 
         // Create a new thread for the connection to the bStats server
         new Thread(new Runnable() {
@@ -276,7 +296,7 @@ public class MetricsLite {
      * @param data The data to send.
      * @throws Exception If the request failed.
      */
-    private static void sendData(Plugin plugin, JSONObject data) throws Exception {
+    private static void sendData(Plugin plugin, JsonObject data) throws Exception {
         if (data == null) {
             throw new IllegalArgumentException("Data cannot be null!");
         }
