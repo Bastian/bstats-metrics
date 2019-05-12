@@ -115,6 +115,8 @@ public class MetricsLite {
         serverUUID = config.getString("serverUuid");
         logFailedRequests = config.getBoolean("logFailedRequests", false);
         enabled = config.getBoolean("enabled", true);
+        logSentData = config.getBoolean("logSentData", false);
+        logResponseStatusText = config.getBoolean("logResponseStatusText", false);
         if (enabled) {
             boolean found = false;
             // Search for all other bStats Metrics classes to see if we are the first one
