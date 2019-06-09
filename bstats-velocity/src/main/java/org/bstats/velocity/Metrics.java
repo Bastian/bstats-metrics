@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
 import java.util.zip.GZIPOutputStream;
 
 import com.google.gson.JsonArray;
@@ -31,6 +30,7 @@ import com.moandjiezana.toml.Toml;
 import com.velocitypowered.api.plugin.PluginContainer;
 import com.velocitypowered.api.plugin.PluginDescription;
 import com.velocitypowered.api.proxy.ProxyServer;
+import org.slf4j.Logger;
 
 /**
  * bStats collects some data for plugin authors.
@@ -428,12 +428,12 @@ public class Metrics {
         /**
          * Creates a plugin data
          *
-         * @param id     id, as the bStats page of the plugin
-         * @param server server instance
-         * @param logger plugin logger
+         * @param pluginInstance plugin instance
+         * @param server         server instance
+         * @param logger         plugin logger
          */
-        public PluginData(Object pluginInstance, String id, ProxyServer server, Logger logger) {
-            plugin = server.getPluginManager().getPlugin(id).get();
+        public PluginData(Object pluginInstance, ProxyServer server, Logger logger) {
+            plugin = server.getPluginManager().fromInstance(pluginInstance).get(); // always present when the metrics class is being initialized
             this.server = server;
             this.logger = logger;
             dataFolder = plugin.getDescription().getSource().get();

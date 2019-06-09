@@ -402,12 +402,12 @@ public class MetricsLite {
         /**
          * Creates a plugin data
          *
-         * @param id     id, as the bStats page of the plugin
-         * @param server server instance
-         * @param logger plugin logger
+         * @param pluginInstance plugin instance
+         * @param server         server instance
+         * @param logger         plugin logger
          */
-        public PluginData(Object pluginInstance, String id, ProxyServer server, Logger logger) {
-            plugin = server.getPluginManager().getPlugin(id).get();
+        public PluginData(Object pluginInstance, ProxyServer server, Logger logger) {
+            plugin = server.getPluginManager().fromInstance(pluginInstance).get(); // always present when the metrics class is being initialized
             this.server = server;
             this.logger = logger;
             dataFolder = plugin.getDescription().getSource().get();

@@ -22,7 +22,7 @@ public class ExamplePlugin {
     public void onProxyInitialize(ProxyInitializeEvent event) {
 
         // All you have to do is add this here
-        Metrics metrics = new Metrics(new Metrics.PluginData(this, "MyPlugin", proxy, logger));
+        Metrics metrics = new Metrics(new Metrics.PluginData(this, proxy, logger));
 
         // Optional: Custom charts
         metrics.addCustomChart(new Metrics.SimplePie("mychart_id", () -> "Yay I am displayed!"));
