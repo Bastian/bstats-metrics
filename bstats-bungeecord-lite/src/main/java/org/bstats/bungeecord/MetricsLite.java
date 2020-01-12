@@ -50,6 +50,9 @@ public class MetricsLite {
     // The plugin
     private final Plugin plugin;
 
+    // The plugin id
+    private final int pluginId;
+
     // Is bStats enabled on this server?
     private boolean enabled;
 
@@ -68,8 +71,15 @@ public class MetricsLite {
     // A list with all known metrics class objects including this one
     private static final List<Object> knownMetricsInstances = new ArrayList<>();
 
-    public MetricsLite(Plugin plugin) {
+    /**
+     * Class constructor.
+     *
+     * @param plugin The plugin which stats should be submitted.
+     * @param pluginId The id of the plugin. It can be found in the url when you open the plugin on bStats.
+     */
+    public MetricsLite(Plugin plugin, int pluginId) {
         this.plugin = plugin;
+        this.pluginId = pluginId;
 
         try {
             loadConfig();
@@ -137,6 +147,7 @@ public class MetricsLite {
         String pluginVersion = plugin.getDescription().getVersion();
 
         data.addProperty("pluginName", pluginName);
+        data.addProperty("id", pluginId);
         data.addProperty("pluginVersion", pluginVersion);
 
         JsonArray customCharts = new JsonArray();

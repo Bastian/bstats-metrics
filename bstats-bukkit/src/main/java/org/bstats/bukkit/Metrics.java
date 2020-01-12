@@ -68,6 +68,9 @@ public class Metrics {
     // The plugin
     private final Plugin plugin;
 
+    // The plugin id
+    private final int pluginId;
+
     // A list with all custom charts
     private final List<CustomChart> charts = new ArrayList<>();
 
@@ -75,12 +78,14 @@ public class Metrics {
      * Class constructor.
      *
      * @param plugin The plugin which stats should be submitted.
+     * @param pluginId The id of the plugin. It can be found in the url when you open the plugin on bStats.
      */
-    public Metrics(Plugin plugin) {
+    public Metrics(Plugin plugin, int pluginId) {
         if (plugin == null) {
             throw new IllegalArgumentException("Plugin cannot be null!");
         }
         this.plugin = plugin;
+        this.pluginId = pluginId;
 
         // Get the config file
         File bStatsFolder = new File(plugin.getDataFolder().getParentFile(), "bStats");
@@ -195,6 +200,7 @@ public class Metrics {
         String pluginVersion = plugin.getDescription().getVersion();
 
         data.addProperty("pluginName", pluginName); // Append the name of the plugin
+        data.addProperty("id", pluginId); // Append the id of the plugin
         data.addProperty("pluginVersion", pluginVersion); // Append the version of the plugin
         JsonArray customCharts = new JsonArray();
         for (CustomChart customChart : charts) {

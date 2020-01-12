@@ -54,6 +54,9 @@ public class Metrics {
     // The plugin
     private final Plugin plugin;
 
+    // The plugin id
+    private final int pluginId;
+
     // Is bStats enabled on this server?
     private boolean enabled;
 
@@ -75,8 +78,15 @@ public class Metrics {
     // A list with all custom charts
     private final List<CustomChart> charts = new ArrayList<>();
 
-    public Metrics(Plugin plugin) {
+    /**
+     * Class constructor.
+     *
+     * @param plugin The plugin which stats should be submitted.
+     * @param pluginId The id of the plugin. It can be found in the url when you open the plugin on bStats.
+     */
+    public Metrics(Plugin plugin, int pluginId) {
         this.plugin = plugin;
+        this.pluginId = pluginId;
 
         try {
             loadConfig();
@@ -156,6 +166,7 @@ public class Metrics {
         String pluginVersion = plugin.getDescription().getVersion();
 
         data.addProperty("pluginName", pluginName);
+        data.addProperty("id", pluginId);
         data.addProperty("pluginVersion", pluginVersion);
 
         JsonArray customCharts = new JsonArray();

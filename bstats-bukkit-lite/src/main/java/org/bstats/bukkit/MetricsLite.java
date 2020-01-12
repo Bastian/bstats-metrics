@@ -69,16 +69,21 @@ public class MetricsLite {
     // The plugin
     private final Plugin plugin;
 
+    // The plugin id
+    private final int pluginId;
+
     /**
      * Class constructor.
      *
      * @param plugin The plugin which stats should be submitted.
+     * @param pluginId The id of the plugin. It can be found in the url when you open the plugin on bStats.
      */
-    public MetricsLite(Plugin plugin) {
+    public MetricsLite(Plugin plugin, int pluginId) {
         if (plugin == null) {
             throw new IllegalArgumentException("Plugin cannot be null!");
         }
         this.plugin = plugin;
+        this.pluginId = pluginId;
 
         // Get the config file
         File bStatsFolder = new File(plugin.getDataFolder().getParentFile(), "bStats");
@@ -180,6 +185,7 @@ public class MetricsLite {
         String pluginVersion = plugin.getDescription().getVersion();
 
         data.addProperty("pluginName", pluginName); // Append the name of the plugin
+        data.addProperty("id", pluginId); // Append the id of the plugin
         data.addProperty("pluginVersion", pluginVersion); // Append the version of the plugin
         data.add("customCharts", new JsonArray());
 
