@@ -7,7 +7,7 @@
     <parent>
         <artifactId>bstats</artifactId>
         <groupId>org.bstats</groupId>
-        <version>1.6</version>
+        <version>1.7</version>
     </parent>
 
     <artifactId>bstats-bukkit-lite</artifactId>
