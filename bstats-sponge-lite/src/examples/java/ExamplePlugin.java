@@ -5,10 +5,13 @@ import org.spongepowered.api.plugin.Plugin;
 @Plugin(id = "exampleplugin", name = "ExamplePlugin", version = "1.0")
 public class ExamplePlugin {
 
-    // No need to call a constructor or any other method.
-    // The metrics field gets initialised using @Inject :)
+    // The metricsFactory parameter gets injected using @Inject :)
     // Check out https://docs.spongepowered.org/master/en/plugin/injection.html if you don't know what @Inject does
     @Inject
-    private MetricsLite2 metrics;
+    public ExamplePlugin(MetricsLite2.Factory metricsFactory) {
+        // You can find the plugin ids of your plugins on the page https://bstats.org/what-is-my-plugin-id
+        int pluginId = 1234; // <-- Replace with the id of your plugin!
+        metricsFactory.make(pluginId);
+    }
 
 }
