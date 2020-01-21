@@ -87,6 +87,38 @@ public class Metrics2 implements Metrics {
         }
     }
 
+    /**
+     * A factory to create new Metrics classes.
+     */
+    public static class Factory {
+
+        private final PluginContainer plugin;
+        private final Logger logger;
+        private final Path configDir;
+
+        // The constructor is not meant to be called by the user.
+        // The instance is created using Dependency Injection (https://docs.spongepowered.org/master/en/plugin/injection.html)
+        @Inject
+        private Factory(PluginContainer plugin, Logger logger, @ConfigDir(sharedRoot = true) Path configDir) {
+            this.plugin = plugin;
+            this.logger = logger;
+            this.configDir = configDir;
+        }
+
+        /**
+         * Creates a new Metrics2 class.
+         *
+         * @param pluginId The id of the plugin.
+         *                 It can be found at <a href="https://bstats.org/what-is-my-plugin-id">What is my plugin id?</a>
+         *                 <p>Not to be confused with Sponge's {@link PluginContainer#getId()} method!
+         * @return A Metrics2 instance that can be used to register custom charts.
+         * <p>The return value can be ignored, when you do not want to register custom charts.
+         */
+        public Metrics2 make(int pluginId) {
+            return new Metrics2(plugin, logger, configDir, pluginId);
+        }
+    }
+
     static {
         // Do not touch. Needs to always be in this class.
         final String defaultName = "org:bstats:sponge:Metrics".replace(":", ".");
@@ -112,6 +144,9 @@ public class Metrics2 implements Metrics {
 
     // The plugin
     private final PluginContainer plugin;
+
+    // The plugin id
+    private final int pluginId;
 
     // The uuid of the server
     private String serverUUID;
@@ -140,13 +175,12 @@ public class Metrics2 implements Metrics {
     // The timer task
     private TimerTask timerTask;
 
-    // The constructor is not meant to be called by the user.
-    // The instance is created using Dependency Injection (https://docs.spongepowered.org/master/en/plugin/injection.html)
-    @Inject
-    private Metrics2(PluginContainer plugin, Logger logger, @ConfigDir(sharedRoot = true) Path configDir) {
+    // The constructor is not meant to be called by the user, but by using the Factory
+    private Metrics2(PluginContainer plugin, Logger logger, Path configDir, int pluginId) {
         this.plugin = plugin;
         this.logger = logger;
         this.configDir = configDir;
+        this.pluginId = pluginId;
 
         Sponge.getEventManager().registerListeners(plugin, this);
     }
@@ -239,6 +273,7 @@ public class Metrics2 implements Metrics {
         String pluginVersion = plugin.getVersion().orElse("unknown");
 
         data.addProperty("pluginName", pluginName);
+        data.addProperty("id", pluginId);
         data.addProperty("pluginVersion", pluginVersion);
         data.addProperty("metricsRevision", B_STATS_CLASS_REVISION);
 
