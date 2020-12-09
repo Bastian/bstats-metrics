@@ -13,7 +13,6 @@ import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +54,9 @@ public class Metrics {
     // The plugin
     private final Plugin plugin;
 
+    // The plugin id
+    private final int pluginId;
+
     // Is bStats enabled on this server?
     private boolean enabled;
 
@@ -76,8 +78,16 @@ public class Metrics {
     // A list with all custom charts
     private final List<CustomChart> charts = new ArrayList<>();
 
-    public Metrics(Plugin plugin) {
+    /**
+     * Class constructor.
+     *
+     * @param plugin The plugin which stats should be submitted.
+     * @param pluginId The id of the plugin.
+     *                 It can be found at <a href="https://bstats.org/what-is-my-plugin-id">What is my plugin id?</a>
+     */
+    public Metrics(Plugin plugin, int pluginId) {
         this.plugin = plugin;
+        this.pluginId = pluginId;
 
         try {
             loadConfig();
@@ -157,6 +167,7 @@ public class Metrics {
         String pluginVersion = plugin.getDescription().getVersion();
 
         data.addProperty("pluginName", pluginName);
+        data.addProperty("id", pluginId);
         data.addProperty("pluginVersion", pluginVersion);
 
         JsonArray customCharts = new JsonArray();
@@ -189,8 +200,7 @@ public class Metrics {
      */
     private JsonObject getServerData() {
         // Minecraft specific data
-        int playerAmount = plugin.getProxy().getOnlineCount();
-        playerAmount = playerAmount > 500 ? 500 : playerAmount;
+        int playerAmount = Math.min(plugin.getProxy().getOnlineCount(), 500);
         int onlineMode = plugin.getProxy().getConfig().isOnlineMode() ? 1 : 0;
         String bungeecordVersion = plugin.getProxy().getVersion();
         int managedServers = plugin.getProxy().getServers().size();
@@ -256,9 +266,9 @@ public class Metrics {
      * @throws IOException If something did not work :(
      */
     private void loadConfig() throws IOException {
-        Path configPath = plugin.getDataFolder().toPath().getParent().resolve("bStats");
-        configPath.toFile().mkdirs();
-        File configFile = new File(configPath.toFile(), "config.yml");
+        File bStatsFolder = new File(plugin.getDataFolder().getParentFile(), "bStats");
+        bStatsFolder.mkdirs();
+        File configFile = new File(bStatsFolder, "config.yml");
         if (!configFile.exists()) {
             writeFile(configFile,
                     "#bStats collects some data for plugin authors like how many servers are using their plugins.",
@@ -266,7 +276,7 @@ public class Metrics {
                     "#This has nearly no effect on the server performance!",
                     "#Check out https://bStats.org/ to learn more :)",
                     "enabled: true",
-                    "serverUuid: \"" + UUID.randomUUID().toString() + "\"",
+                    "serverUuid: \"" + UUID.randomUUID() + "\"",
                     "logFailedRequests: false",
                     "logSentData: false",
                     "logResponseStatusText: false");
@@ -288,9 +298,9 @@ public class Metrics {
      * @return The first bStats metrics class.
      */
     private Class<?> getFirstBStatsClass() {
-        Path configPath = plugin.getDataFolder().toPath().getParent().resolve("bStats");
-        configPath.toFile().mkdirs();
-        File tempFile = new File(configPath.toFile(), "temp.txt");
+        File bStatsFolder = new File(plugin.getDataFolder().getParentFile(), "bStats");
+        bStatsFolder.mkdirs();
+        File tempFile = new File(bStatsFolder, "temp.txt");
 
         try {
             String className = readFile(tempFile);
@@ -314,17 +324,14 @@ public class Metrics {
      * Reads the first line of the file.
      *
      * @param file The file to read. Cannot be null.
-     * @return The first line of the file or <code>null</code> if the file does not exist or is empty.
+     * @return The first line of the file or {@code null} if the file does not exist or is empty.
      * @throws IOException If something did not work :(
      */
     private String readFile(File file) throws IOException {
         if (!file.exists()) {
             return null;
         }
-        try (
-                FileReader fileReader = new FileReader(file);
-                BufferedReader bufferedReader = new BufferedReader(fileReader);
-        ) {
+        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(file))) {
             return bufferedReader.readLine();
         }
     }
@@ -337,13 +344,7 @@ public class Metrics {
      * @throws IOException If something did not work :(
      */
     private void writeFile(File file, String... lines) throws IOException {
-        if (!file.exists()) {
-            file.createNewFile();
-        }
-        try (
-                FileWriter fileWriter = new FileWriter(file);
-                BufferedWriter bufferedWriter = new BufferedWriter(fileWriter)
-        ) {
+        try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(file))) {
             for (String line : lines) {
                 bufferedWriter.write(line);
                 bufferedWriter.newLine();
@@ -363,7 +364,7 @@ public class Metrics {
             throw new IllegalArgumentException("Data cannot be null");
         }
         if (logSentData) {
-            plugin.getLogger().info("Sending data to bStats: " + data.toString());
+            plugin.getLogger().info("Sending data to bStats: " + data);
         }
 
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();
@@ -382,22 +383,21 @@ public class Metrics {
 
         // Send data
         connection.setDoOutput(true);
-        DataOutputStream outputStream = new DataOutputStream(connection.getOutputStream());
-        outputStream.write(compressedData);
-        outputStream.flush();
-        outputStream.close();
-
-        InputStream inputStream = connection.getInputStream();
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+        try (DataOutputStream outputStream = new DataOutputStream(connection.getOutputStream())) {
+            outputStream.write(compressedData);
+        }
 
         StringBuilder builder = new StringBuilder();
-        String line;
-        while ((line = bufferedReader.readLine()) != null) {
-            builder.append(line);
+
+        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                builder.append(line);
+            }
         }
-        bufferedReader.close();
+
         if (logResponseStatusText) {
-            plugin.getLogger().info("Sent data to bStats and received response: " + builder.toString());
+            plugin.getLogger().info("Sent data to bStats and received response: " + builder);
         }
     }
 
@@ -413,9 +413,9 @@ public class Metrics {
             return null;
         }
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        GZIPOutputStream gzip = new GZIPOutputStream(outputStream);
-        gzip.write(str.getBytes(StandardCharsets.UTF_8));
-        gzip.close();
+        try (GZIPOutputStream gzip = new GZIPOutputStream(outputStream)) {
+            gzip.write(str.getBytes(StandardCharsets.UTF_8));
+        }
         return outputStream.toByteArray();
     }
 

@@ -85,6 +85,38 @@ public class MetricsLite2 implements Metrics {
         }
     }
 
+    /**
+     * A factory to create new Metrics classes.
+     */
+    public static class Factory {
+
+        private final PluginContainer plugin;
+        private final Logger logger;
+        private final Path configDir;
+
+        // The constructor is not meant to be called by the user.
+        // The instance is created using Dependency Injection (https://docs.spongepowered.org/master/en/plugin/injection.html)
+        @Inject
+        private Factory(PluginContainer plugin, Logger logger, @ConfigDir(sharedRoot = true) Path configDir) {
+            this.plugin = plugin;
+            this.logger = logger;
+            this.configDir = configDir;
+        }
+
+        /**
+         * Creates a new MetricsLite2 class.
+         *
+         * @param pluginId The id of the plugin.
+         *                 It can be found at <a href="https://bstats.org/what-is-my-plugin-id">What is my plugin id?</a>
+         *                 <p>Not to be confused with Sponge's {@link PluginContainer#getId()} method!
+         * @return A MetricsLite2 instance that can be used to register custom charts.
+         * <p>The return value can be ignored, when you do not want to register custom charts.
+         */
+        public MetricsLite2 make(int pluginId) {
+            return new MetricsLite2(plugin, logger, configDir, pluginId);
+        }
+    }
+
     static {
         // Do not touch. Needs to always be in this class.
         final String defaultName = "org:bstats:sponge:Metrics".replace(":", ".");
@@ -111,6 +143,9 @@ public class MetricsLite2 implements Metrics {
     // The plugin
     private final PluginContainer plugin;
 
+    // The plugin id
+    private final int pluginId;
+
     // The uuid of the server
     private String serverUUID;
 
@@ -135,13 +170,12 @@ public class MetricsLite2 implements Metrics {
     // The timer task
     private TimerTask timerTask;
 
-    // The constructor is not meant to be called by the user.
-    // The instance is created using Dependency Injection (https://docs.spongepowered.org/master/en/plugin/injection.html)
-    @Inject
-    private MetricsLite2(PluginContainer plugin, Logger logger, @ConfigDir(sharedRoot = true) Path configDir) {
+    // The constructor is not meant to be called by the user, but by using the Factory
+    private MetricsLite2(PluginContainer plugin, Logger logger, Path configDir, int pluginId) {
         this.plugin = plugin;
         this.logger = logger;
         this.configDir = configDir;
+        this.pluginId = pluginId;
 
         Sponge.getEventManager().registerListeners(plugin, this);
     }
@@ -222,11 +256,11 @@ public class MetricsLite2 implements Metrics {
 
         String pluginName = plugin.getName();
         String pluginVersion = plugin.getVersion().orElse("unknown");
-        int revision = getRevision();
 
         data.addProperty("pluginName", pluginName);
+        data.addProperty("id", pluginId);
         data.addProperty("pluginVersion", pluginVersion);
-        data.addProperty("metricsRevision", revision);
+        data.addProperty("metricsRevision", B_STATS_CLASS_REVISION);
 
         JsonArray customCharts = new JsonArray();
         data.add("customCharts", customCharts);
@@ -321,14 +355,14 @@ public class MetricsLite2 implements Metrics {
             builder.append("Presently, none of them are allowed to send data.").append(System.lineSeparator());
         } else {
             builder.append("Presently, the following ").append(enabled.size()).append(" plugins are allowed to send data:").append(System.lineSeparator());
-            builder.append(enabled.toString()).append(System.lineSeparator());
+            builder.append(enabled).append(System.lineSeparator());
         }
         if (disabled.isEmpty()) {
             builder.append("None of them have data sending disabled.");
             builder.append(System.lineSeparator());
         } else {
             builder.append("Presently, the following ").append(disabled.size()).append(" plugins are not allowed to send data:").append(System.lineSeparator());
-            builder.append(disabled.toString()).append(System.lineSeparator());
+            builder.append(disabled).append(System.lineSeparator());
         }
         builder.append("To change the enabled/disabled state of any bStats use in a plugin, visit the Sponge config!");
         logger.info(builder.toString());
@@ -341,8 +375,7 @@ public class MetricsLite2 implements Metrics {
      */
     private JsonObject getServerData() {
         // Minecraft specific data
-        int playerAmount = Sponge.getServer().getOnlinePlayers().size();
-        playerAmount = playerAmount > 200 ? 200 : playerAmount;
+        int playerAmount = Math.min(Sponge.getServer().getOnlinePlayers().size(), 200);
         int onlineMode = Sponge.getServer().getOnlineMode() ? 1 : 0;
         String minecraftVersion = Sponge.getGame().getPlatform().getMinecraftVersion().getName();
         String spongeImplementation = Sponge.getPlatform().getContainer(Platform.Component.IMPLEMENTATION).getName();
@@ -482,17 +515,14 @@ public class MetricsLite2 implements Metrics {
      * Reads the first line of the file.
      *
      * @param file The file to read. Cannot be null.
-     * @return The first line of the file or <code>null</code> if the file does not exist or is empty.
+     * @return The first line of the file or {@code null} if the file does not exist or is empty.
      * @throws IOException If something did not work :(
      */
     private String readFile(File file) throws IOException {
         if (!file.exists()) {
             return null;
         }
-        try (
-                FileReader fileReader = new FileReader(file);
-                BufferedReader bufferedReader = new BufferedReader(fileReader);
-        ) {
+        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(file))) {
             return bufferedReader.readLine();
         }
     }
@@ -507,7 +537,7 @@ public class MetricsLite2 implements Metrics {
     private static void sendData(Logger logger, JsonObject data) throws Exception {
         Validate.notNull(data, "Data cannot be null");
         if (logSentData) {
-            logger.info("Sending data to bStats: {}", data.toString());
+            logger.info("Sending data to bStats: {}", data);
         }
         HttpsURLConnection connection = (HttpsURLConnection) new URL(URL).openConnection();
 
@@ -525,22 +555,20 @@ public class MetricsLite2 implements Metrics {
 
         // Send data
         connection.setDoOutput(true);
-        DataOutputStream outputStream = new DataOutputStream(connection.getOutputStream());
-        outputStream.write(compressedData);
-        outputStream.flush();
-        outputStream.close();
-
-        InputStream inputStream = connection.getInputStream();
-        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+        try (DataOutputStream outputStream = new DataOutputStream(connection.getOutputStream())) {
+            outputStream.write(compressedData);
+        }
 
         StringBuilder builder = new StringBuilder();
-        String line;
-        while ((line = bufferedReader.readLine()) != null) {
-            builder.append(line);
+        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                builder.append(line);
+            }
         }
-        bufferedReader.close();
+
         if (logResponseStatusText) {
-            logger.info("Sent data to bStats and received response: {}", builder.toString());
+            logger.info("Sent data to bStats and received response: {}", builder);
         }
     }
 
@@ -556,9 +584,9 @@ public class MetricsLite2 implements Metrics {
             return null;
         }
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        GZIPOutputStream gzip = new GZIPOutputStream(outputStream);
-        gzip.write(str.getBytes(StandardCharsets.UTF_8));
-        gzip.close();
+        try (GZIPOutputStream gzip = new GZIPOutputStream(outputStream)) {
+            gzip.write(str.getBytes(StandardCharsets.UTF_8));
+        }
         return outputStream.toByteArray();
     }
 
