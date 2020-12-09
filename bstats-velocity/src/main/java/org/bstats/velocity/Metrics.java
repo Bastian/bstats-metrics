@@ -175,7 +175,7 @@ public class Metrics {
         // The data collection is async, as well as sending the data
         // Velocity does not have a main thread, everything is async
         pluginData.getServer().getScheduler().buildTask(pluginData.getPluginInstance(), this::submitData)
-                .delay(2, TimeUnit.MINUTES).repeat(30, TimeUnit.MILLISECONDS).schedule();
+                .delay(2, TimeUnit.MINUTES).repeat(30, TimeUnit.MINUTES).schedule();
         // Submit the data every 30 minutes, first time after 2 minutes to give other plugins enough time to start
         // WARNING: Changing the frequency has no effect but your plugin WILL be blocked/deleted!
         // WARNING: Just don't do it!

@@ -24,7 +24,6 @@ import java.util.zip.GZIPOutputStream;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.moandjiezana.toml.Toml;
-import com.sun.javafx.font.Metrics;
 import com.velocitypowered.api.plugin.PluginContainer;
 import com.velocitypowered.api.plugin.PluginDescription;
 import com.velocitypowered.api.proxy.ProxyServer;
@@ -46,7 +45,7 @@ public class MetricsLite {
                     new byte[] {'o', 'r', 'g', '.', 'b', 's', 't', 'a', 't', 's', '.', 'v', 'e', 'l', 'o', 'c', 'i', 't', 'y'});
             String examplePackage = new String(new byte[] {'y', 'o', 'u', 'r', '.', 'p', 'a', 'c', 'k', 'a', 'g', 'e'});
             // We want to make sure nobody just copy & pastes the example and use the wrong package names
-            if (Metrics.class.getPackage().getName().equals(defaultPackage) || Metrics.class.getPackage().getName().equals(examplePackage)) {
+            if (MetricsLite.class.getPackage().getName().equals(defaultPackage) || MetricsLite.class.getPackage().getName().equals(examplePackage)) {
                 throw new IllegalStateException("bStats Metrics class has not been relocated correctly!");
             }
         }
@@ -149,7 +148,7 @@ public class MetricsLite {
         // The data collection is async, as well as sending the data
         // Velocity does not have a main thread, everything is async
         pluginData.getServer().getScheduler().buildTask(pluginData.getPluginInstance(), this::submitData)
-                .delay(2, TimeUnit.MINUTES).repeat(30, TimeUnit.MILLISECONDS).schedule();
+                .delay(2, TimeUnit.MINUTES).repeat(30, TimeUnit.MINUTES).schedule();
         // Submit the data every 30 minutes, first time after 2 minutes to give other plugins enough time to start
         // WARNING: Changing the frequency has no effect but your plugin WILL be blocked/deleted!
         // WARNING: Just don't do it!
