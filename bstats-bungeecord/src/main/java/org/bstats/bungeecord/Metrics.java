@@ -185,12 +185,15 @@ public class Metrics {
     }
 
     private void startSubmitting() {
-        // The data collection is async, as well as sending the data
-        // Bungeecord does not have a main thread, everything is async
-        plugin.getProxy().getScheduler().schedule(plugin, this::submitData, 2, 30, TimeUnit.MINUTES);
-        // Submit the data every 30 minutes, first time after 2 minutes to give other plugins enough time to start
-        // WARNING: Changing the frequency has no effect but your plugin WILL be blocked/deleted!
-        // WARNING: Just don't do it!
+        // Many servers tend to restart at a fixed time at xx:00 which causes an uneven distribution of requests on the
+        // bStats backend. To circumvent this problem, we introduce some randomness into the initial and second delay.
+        // WARNING: You must not modify and part of this Metrics class, including the submit delay or frequency!
+        // WARNING: Modifying this code will get your plugin banned on bStats. Just don't do it!
+        long initialDelay = (long) (1000 * 60 * (3 + Math.random() * 3));
+        long secondDelay = (long) (1000 * 60 * (Math.random() * 30));
+        plugin.getProxy().getScheduler().schedule(plugin, this::submitData, initialDelay, TimeUnit.MILLISECONDS);
+        plugin.getProxy().getScheduler().schedule(
+                plugin, this::submitData, initialDelay + secondDelay, 1000 * 60 * 30, TimeUnit.MILLISECONDS);
     }
 
     /**
