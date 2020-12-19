@@ -26,6 +26,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -128,6 +131,10 @@ public class MetricsLite2 implements Metrics {
         }
     }
 
+    // Executor service for requests
+    // We use an executor service to be independent of server TPS
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
     // The version of bStats info being sent
     public static final int B_STATS_VERSION = 1;
 
@@ -167,9 +174,6 @@ public class MetricsLite2 implements Metrics {
     // The list of instances from the bStats 1 instance's that started first
     private List<Object> oldInstances = new ArrayList<>();
 
-    // The timer task
-    private TimerTask timerTask;
-
     // The constructor is not meant to be called by the user, but by using the Factory
     private MetricsLite2(PluginContainer plugin, Logger logger, Path configDir, int pluginId) {
         this.plugin = plugin;
@@ -202,9 +206,7 @@ public class MetricsLite2 implements Metrics {
 
     @Override
     public void cancel() {
-        if (timerTask != null) {
-            timerTask.cancel();
-        }
+        scheduler.shutdown();
     }
 
     @Override
@@ -316,22 +318,17 @@ public class MetricsLite2 implements Metrics {
             }
         } catch (IOException ignored) { }
 
-        // We use a timer cause want to be independent from the server tps
-        final Timer timer = new Timer(true);
-        timerTask = new TimerTask() {
-            @Override
-            public void run() {
-                // Catch any stragglers from inexplicable post-server-load plugin loading of outdated bStats
-                for (Object instance : oldInstances) {
-                    linkOldMetrics(instance); // Om nom nom
-                }
-                oldInstances.clear(); // Look at me. I'm the bStats now.
-                // The data collection (e.g. for custom graphs) is done sync
-                // Don't be afraid! The connection to the bStats server is still async, only the stats collection is sync ;)
-                Scheduler scheduler = Sponge.getScheduler();
-                Task.Builder taskBuilder = scheduler.createTaskBuilder();
-                taskBuilder.execute(() -> submitData()).submit(plugin);
+        final Runnable submitTask = () -> {
+            // Catch any stragglers from inexplicable post-server-load plugin loading of outdated bStats
+            for (Object instance : oldInstances) {
+                linkOldMetrics(instance); // Om nom nom
             }
+            oldInstances.clear(); // Look at me. I'm the bStats now.
+            // The data collection (e.g. for custom graphs) is done sync
+            // Don't be afraid! The connection to the bStats server is still async, only the stats collection is sync ;)
+            Scheduler scheduler = Sponge.getScheduler();
+            Task.Builder taskBuilder = scheduler.createTaskBuilder();
+            taskBuilder.execute(this::submitData).submit(plugin);
         };
 
         // Many servers tend to restart at a fixed time at xx:00 which causes an uneven distribution of requests on the
@@ -340,8 +337,8 @@ public class MetricsLite2 implements Metrics {
         // WARNING: Modifying this code will get your plugin banned on bStats. Just don't do it!
         long initialDelay = (long) (1000 * 60 * (3 + Math.random() * 3));
         long secondDelay = (long) (1000 * 60 * (Math.random() * 30));
-        timer.schedule(timerTask, initialDelay);
-        timer.scheduleAtFixedRate(timerTask, initialDelay + secondDelay, 1000 * 60 * 30);
+        scheduler.schedule(submitTask, initialDelay, TimeUnit.MILLISECONDS);
+        scheduler.scheduleAtFixedRate(submitTask, initialDelay + secondDelay, 1000 * 60 * 30, TimeUnit.MILLISECONDS);
 
         // Let's log if things are enabled or not, once at startup:
         List<String> enabled = new ArrayList<>();
