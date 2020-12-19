@@ -6,7 +6,7 @@
 
     <groupId>org.bstats</groupId>
     <artifactId>bstats</artifactId>
-    <version>1.7</version>
+    <version>1.8</version>
     <packaging>pom</packaging>
 
     <name>bStats-Metrics</name>
