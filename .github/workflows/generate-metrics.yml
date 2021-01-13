@@ -1,0 +1,45 @@
+# If the current version is not a snapshot version ("-SNAPSHOT" suffix), this CI job will generate a Metrics
+# class for every platform by bundling all dependent class as inner classes. This generated Metrics class
+# will then be pushed to a separate "single-file" branch. These generated Metrics classes exist for people
+# that are unfamiliar with build management tools like Gradle or Maven and prefer to just copy a single
+# file into their project.
+name: Generate-Metrics
+on:
+  # Unfortunately, we cannot use a version release as the trigger because the release is done by a GitHub action and
+  # GitHub actions cannot trigger other GitHub actions.
+  push:
+    branches:
+      - 'master'
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v1
+        with:
+          java-version: '11'
+      - name: Read Version
+        id: read-version
+        run: |
+          version=`cat gradle.properties | sed -n "s/^.*version\s*=\s*\(\S*\).*$/\1/p"`
+          echo "::set-output name=version::$version"
+      - name: Generate Metrics Class
+        if: ${{ !endsWith(steps.read-version.outputs.version, 'SNAPSHOT') }}
+        run: ./gradlew generateMetrics
+      - name: Commit Metrics Class
+        if: ${{ !endsWith(steps.read-version.outputs.version, 'SNAPSHOT') }}
+        run: |
+          git config --global user.name 'bStats CI'
+          git config --global user.email '<>'
+          git fetch
+          git checkout --orphan single-file
+          git pull origin single-file || echo "Cannot pull. Maybe the branch does not exist yet?"
+          mv bukkit/build/generated/Metrics.java bukkit/Metrics.java
+          mv bungeecord/build/generated/Metrics.java bungeecord/Metrics.java
+          mv sponge/build/generated/Metrics.java sponge/Metrics.java
+          git reset
+          git add bukkit/Metrics.java
+          git add bungeecord/Metrics.java
+          git add sponge/Metrics.java
+          git diff --quiet && git diff --staged --quiet || git commit -am "Version ${{ steps.read-version.outputs.version }}"
+          git push --set-upstream origin single-file
