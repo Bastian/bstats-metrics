@@ -28,6 +28,7 @@ import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPOutputStream;
 
@@ -131,9 +132,12 @@ public class MetricsLite2 implements Metrics {
         }
     }
 
+    // This ThreadFactory enforces the naming convention for our Threads
+    private final ThreadFactory threadFactory = task -> new Thread(task, "bStats-Metrics");
+
     // Executor service for requests
     // We use an executor service to be independent of server TPS
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1, threadFactory);
 
     // The version of bStats info being sent
     public static final int B_STATS_VERSION = 1;
