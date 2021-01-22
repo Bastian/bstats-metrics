@@ -109,10 +109,10 @@ public class Metrics {
         StringBuilder builder = new StringBuilder().append(System.lineSeparator());
         builder.append("Plugin ").append(plugin.getName()).append(" is using bStats Metrics ");
         if (Sponge.getMetricsConfigManager().areMetricsEnabled(plugin)) {
+            builder.append(" and is allowed to send data.");
+        } else {
             builder.append(" but currently has data sending disabled.").append(System.lineSeparator());
             builder.append("To change the enabled/disabled state of any bStats use in a plugin, visit the Sponge config!");
-        } else {
-            builder.append(" and is allowed to send data.");
         }
     }
 
