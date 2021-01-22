@@ -29,7 +29,7 @@ jobs:
           release_name: Release ${{ steps.read-version.outputs.version }}
           body: |
             Version ${{ steps.read-version.outputs.version }}
-          draft: false
+          draft: true
           prerelease: false
       - name: Update Version
         if: ${{ !endsWith(steps.read-version.outputs.version, 'SNAPSHOT') }}
