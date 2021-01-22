@@ -29,8 +29,8 @@ jobs:
       - name: Commit Metrics Class
         if: ${{ !endsWith(steps.read-version.outputs.version, 'SNAPSHOT') }}
         run: |
-          git config --global user.name 'bStats CI'
-          git config --global user.email '<>'
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git fetch
           git checkout --orphan single-file
           git pull origin single-file || echo "Cannot pull. Maybe the branch does not exist yet?"
