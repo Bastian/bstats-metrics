@@ -25,7 +25,7 @@ jobs:
           echo "::set-output name=version::$version"
       - name: Generate Metrics Class
         if: ${{ !endsWith(steps.read-version.outputs.version, 'SNAPSHOT') }}
-        run: ./gradlew generateMetrics
+        run: ./gradlew test generateMetrics
       - name: Commit Metrics Class
         if: ${{ !endsWith(steps.read-version.outputs.version, 'SNAPSHOT') }}
         run: |

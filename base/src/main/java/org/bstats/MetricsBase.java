@@ -24,6 +24,11 @@ import java.util.zip.GZIPOutputStream;
 
 public class MetricsBase {
 
+    /**
+     * The version of the Metrics class.
+     */
+    public static final String METRICS_VERSION = "2.0.2-SNAPSHOT";
+
     private static final ScheduledExecutorService scheduler =
             Executors.newScheduledThreadPool(1, task -> new Thread(task, "bStats-Metrics"));
     private static final String REPORT_URL = "https://bStats.org/api/v2/data/%s";
@@ -144,6 +149,7 @@ public class MetricsBase {
         serviceJsonBuilder.appendField("customCharts", chartData);
         baseJsonBuilder.appendField("service", serviceJsonBuilder.build());
         baseJsonBuilder.appendField("serverUUID", serverUuid);
+        baseJsonBuilder.appendField("metricsVersion", METRICS_VERSION);
 
         JsonObjectBuilder.JsonObject data = baseJsonBuilder.build();
 

@@ -14,5 +14,10 @@ tasks.register("incrementVersion") {
         file("gradle.properties").writeText(
                 file("gradle.properties").readText().replace(version.toString(), newVersion)
         )
+
+        file("base/src/main/java/org/bstats/MetricsBase.java").writeText(
+                file("base/src/main/java/org/bstats/MetricsBase.java").readText()
+                        .replace("METRICS_VERSION = \"${version.toString()}\";", "METRICS_VERSION = \"${newVersion}\";")
+        )
     }
 }

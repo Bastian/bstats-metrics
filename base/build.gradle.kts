@@ -20,3 +20,7 @@ java {
     withJavadocJar()
     withSourcesJar()
 }
+
+tasks.test {
+    systemProperty("metrics-version", version.toString())
+}

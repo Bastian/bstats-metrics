@@ -17,7 +17,7 @@ jobs:
         with:
           java-version: 11
       - name: Publish
-        run: gradle publish
+        run: ./gradlew test publish
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
