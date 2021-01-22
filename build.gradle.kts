@@ -44,6 +44,15 @@ configure<PublishingExtension> {
                             developerConnection.set("scm:git:git@github.com:Bastian/bStats-Metrics.git")
                             url.set("https://github.com/Bastian/bStats-Metrics")
                         }
+                        developers {
+                            developer {
+                                id.set("Bastian")
+                                name.set("Bastian Oppermann")
+                                email.set("bastian@bstats.org")
+                                url.set("https://github.com/Bastian")
+                                timezone.set("Europe/Berlin")
+                            }
+                        }
                     }
                 }
             }
