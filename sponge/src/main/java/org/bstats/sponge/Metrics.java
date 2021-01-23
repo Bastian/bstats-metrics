@@ -114,6 +114,7 @@ public class Metrics {
             builder.append(" but currently has data sending disabled.").append(System.lineSeparator());
             builder.append("To change the enabled/disabled state of any bStats use in a plugin, visit the Sponge config!");
         }
+        logger.info(builder.toString());
     }
 
     /**
