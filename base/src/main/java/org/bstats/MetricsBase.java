@@ -27,7 +27,7 @@ public class MetricsBase {
     /**
      * The version of the Metrics class.
      */
-    public static final String METRICS_VERSION = "2.0.2-SNAPSHOT";
+    public static final String METRICS_VERSION = "2.1.0";
 
     private static final ScheduledExecutorService scheduler =
             Executors.newScheduledThreadPool(1, task -> new Thread(task, "bStats-Metrics"));
