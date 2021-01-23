@@ -32,7 +32,7 @@ configure<PublishingExtension> {
                     pom {
                         name.set("bStats-Metrics")
                         description.set("The bStats Metrics class")
-                        url.set("http://bStats.org")
+                        url.set("https://bStats.org")
                         licenses {
                             license {
                                 name.set("MIT License")
