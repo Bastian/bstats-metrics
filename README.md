@@ -17,7 +17,8 @@ It will write the generated files into the `<platform>/build/generated/` directo
 
 Snapshots are automatically published on every push.
 
-To publish a new release, one can simply remove the `-SNAPSHOT` suffix from the version in the `gradle.properties` file.
+To publish a new release, one can simply remove the `-SNAPSHOT` suffix from the version in the `gradle.properties` file
+and in the [`MetricsBase`](/base/src/main/java/org/bstats/MetricsBase.java) class.
 This will automatically trigger a GitHub Action that
 * Publishes a GitHub Release
 * Pushes the new version to Maven Central
