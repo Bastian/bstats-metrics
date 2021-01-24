@@ -47,7 +47,7 @@ public class Metrics {
          * @param serviceId The id of the service.
          *                  It can be found at <a href="https://bstats.org/what-is-my-plugin-id">What is my plugin id?</a>
          *                  <p>Not to be confused with Sponge's {@link PluginContainer#getId()} method!
-         * @return A Metrics2 instance that can be used to register custom charts.
+         * @return A Metrics instance that can be used to register custom charts.
          * <p>The return value can be ignored, when you do not want to register custom charts.
          */
         public Metrics make(int serviceId) {
