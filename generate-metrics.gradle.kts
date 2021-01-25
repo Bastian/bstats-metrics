@@ -19,6 +19,7 @@ tasks.register("generateMetrics") {
         generatePlatformMetricsClass("bukkit")
         generatePlatformMetricsClass("bungeecord")
         generatePlatformMetricsClass("sponge")
+        generatePlatformMetricsClass("velocity")
     }
 }
 

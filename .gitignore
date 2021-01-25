@@ -1,8 +1,5 @@
 # Project exclude paths
 /.gradle/
-/base/build/
-/bukkit/build/
-/sponge/build/
-/bungeecord/build/
+/*/build/
 /build/
 .idea
