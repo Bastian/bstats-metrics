@@ -16,25 +16,25 @@ buildscript {
 
 tasks.register("generateMetrics") {
     doLast {
-        generatePlatformMetricsClass("bukkit")
-        generatePlatformMetricsClass("bungeecord")
-        generatePlatformMetricsClass("sponge")
-        generatePlatformMetricsClass("velocity")
+        generatePlatformMetricsClass("bukkit", false)
+        generatePlatformMetricsClass("bungeecord", false)
+        generatePlatformMetricsClass("sponge", false)
+        generatePlatformMetricsClass("velocity", true)
     }
 }
 
 /**
  * Generates the Metrics class for the given platform.
  */
-fun generatePlatformMetricsClass(platform: String) =
+fun generatePlatformMetricsClass(platform: String, withMetricsConfig: Boolean) =
         file("${project(":$platform").buildDir}/generated/Metrics.java")
                 .apply { parentFile.mkdirs() }
-                .writeText(enrichPlatformMetricsClass(platform))
+                .writeText(enrichPlatformMetricsClass(platform, withMetricsConfig))
 
 /**
  * Enriches the platform Metrics class with all dependent classes as inner classes.
  */
-fun enrichPlatformMetricsClass(platform: String): String {
+fun enrichPlatformMetricsClass(platform: String, withMetricsConfig: Boolean): String {
     val metrics = file("${platform}/src/main/java/org/bstats/${platform}/Metrics.java").readText()
             .let {
                 convertClassToInnerClass(it, file("base/src/main/java/org/bstats/MetricsBase.java").readText())
@@ -44,6 +44,8 @@ fun enrichPlatformMetricsClass(platform: String): String {
                         .fold(it) { acc, file -> convertClassToInnerClass(acc, file) }
             }.let {
                 convertClassToInnerClass(it, file("base/src/main/java/org/bstats/json/JsonObjectBuilder.java").readText())
+            }.let {
+                convertClassToInnerClass(it, file("base/src/main/java/org/bstats/config/MetricsConfig.java").readText())
             }
 
     return Formatter().formatSource(metrics);
