@@ -59,7 +59,7 @@ public class MetricsConfig {
     }
 
     /**
-     * Checks if the config file did exist before or was freshly generated.
+     * Checks whether the config file did exist before or not.
      *
      * @return If the config did exist before.
      */
