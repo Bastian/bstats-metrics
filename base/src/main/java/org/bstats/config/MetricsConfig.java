@@ -29,6 +29,8 @@ public class MetricsConfig {
     private boolean logSentData;
     private boolean logResponseStatusText;
 
+    private boolean didExistBefore = true;
+
     public MetricsConfig(File file, boolean defaultEnabled) throws IOException {
         this.file = file;
         this.defaultEnabled = defaultEnabled;
@@ -57,10 +59,20 @@ public class MetricsConfig {
     }
 
     /**
+     * Checks if the config file did exist before or was freshly generated.
+     *
+     * @return If the config did exist before.
+     */
+    public boolean didExistBefore() {
+        return didExistBefore;
+    }
+
+    /**
      * Creates the config file if it does not exist and read its content.
      */
     private void setupConfig() throws IOException {
         if (!file.exists()) {
+            didExistBefore = false; // Looks like it's the first time we create it (or someone deleted it).
             writeConfig();
         }
         readConfig();
