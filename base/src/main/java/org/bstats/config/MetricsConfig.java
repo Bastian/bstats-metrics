@@ -89,7 +89,7 @@ public class MetricsConfig {
     private void writeConfig() throws IOException {
         List<String> configContent = new ArrayList<>();
         configContent.add("# bStats collects some basic information for plugin authors, like how many people use");
-        configContent.add("# their plugin and their total player count. It's recommend to keep bStats enabled, but");
+        configContent.add("# their plugin and their total player count. It's recommended to keep bStats enabled, but");
         configContent.add("# if you're not comfortable with this, you can turn this setting off. There is no");
         configContent.add("# performance penalty associated with having metrics enabled, and data sent to bStats");
         configContent.add("# can't identify your server.");
