@@ -126,6 +126,14 @@ public class Metrics {
         File configFile = new File(configPath, "config.conf");
         HoconConfigurationLoader configurationLoader = HoconConfigurationLoader.builder().setFile(configFile).build();
         CommentedConfigurationNode node;
+
+        String serverUuidComment =
+            "bStats collects some basic information for plugin authors, like how many people use\n" +
+            "their plugin and their total player count. It's recommended to keep bStats enabled, but\n" +
+            "if you're not comfortable with this, you can disable data collection in the Sponge\n" +
+            "configuration file. There is no performance penalty associated with having metrics enabled,\n" +
+            "and data sent to bStats can't identify your server.";
+
         if (!configFile.exists()) {
             configFile.createNewFile();
             node = configurationLoader.load();
@@ -134,12 +142,7 @@ public class Metrics {
             node.getNode("logFailedRequests").setValue(false);
             node.getNode("logSentData").setValue(false);
             node.getNode("logResponseStatusText").setValue(false);
-
-            node.getNode("serverUuid").setComment(
-                    "bStats collects some data for plugin authors like how many servers are using their plugins.\n" +
-                    "To control whether this is enabled or disabled, see the Sponge configuration file.\n" +
-                    "Check out https://bStats.org/ to learn more :)"
-            );
+            node.getNode("serverUuid").setComment(serverUuidComment);
             node.getNode("configVersion").setValue(2);
 
             configurationLoader.save(node);
@@ -155,12 +158,7 @@ public class Metrics {
                         "Sponge config to control bStats. Leave this value as you want it to be for outdated plugins,\n" +
                         "but look there for further control");
 
-                node.getNode("serverUuid").setComment(
-                        "bStats collects some data for plugin authors like how many servers are using their plugins.\n" +
-                        "To control whether this is enabled or disabled, see the Sponge configuration file.\n" +
-                        "Check out https://bStats.org/ to learn more :)"
-                );
-
+                node.getNode("serverUuid").setComment(serverUuidComment);
                 configurationLoader.save(node);
             }
         }

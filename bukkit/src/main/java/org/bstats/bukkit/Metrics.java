@@ -45,10 +45,11 @@ public class Metrics {
 
             // Inform the server owners about bStats
             config.options().header(
-                    "bStats collects some data for plugin authors like how many servers are using their plugins.\n" +
-                    "To honor their work, you should not disable it.\n" +
-                    "This has nearly no effect on the server performance!\n" +
-                    "Check out https://bStats.org/ to learn more :)"
+                    "bStats collects some basic information for plugin authors, like how many people use\n" +
+                    "their plugin and their total player count. It's recommended to keep bStats enabled, but\n" +
+                    "if you're not comfortable with this, you can turn this setting off. There is no\n" +
+                    "performance penalty associated with having metrics enabled, and data sent to bStats\n" +
+                    "can't identify your server."
             ).copyDefaults(true);
             try {
                 config.save(configFile);

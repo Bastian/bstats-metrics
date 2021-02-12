@@ -71,10 +71,11 @@ public class Metrics {
         File configFile = new File(bStatsFolder, "config.yml");
         if (!configFile.exists()) {
             writeFile(configFile,
-                    "#bStats collects some data for plugin authors like how many servers are using their plugins.",
-                    "#To honor their work, you should not disable it.",
-                    "#This has nearly no effect on the server performance!",
-                    "#Check out https://bStats.org/ to learn more :)",
+                    "# bStats collects some basic information for plugin authors, like how many people use",
+                    "# their plugin and their total player count. It's recommended to keep bStats enabled, but",
+                    "# if you're not comfortable with this, you can turn this setting off. There is no",
+                    "# performance penalty associated with having metrics enabled, and data sent to bStats",
+                    "# can't identify your server.",
                     "enabled: true",
                     "serverUuid: \"" + UUID.randomUUID() + "\"",
                     "logFailedRequests: false",
