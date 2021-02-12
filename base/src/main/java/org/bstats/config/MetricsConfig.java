@@ -88,11 +88,11 @@ public class MetricsConfig {
      */
     private void writeConfig() throws IOException {
         List<String> configContent = new ArrayList<>();
-        configContent.add("# bStats collects some basic information for plugin authors, like how many people use");
-        configContent.add("# their plugin and their total player count. It's recommended to keep bStats enabled, but");
-        configContent.add("# if you're not comfortable with this, you can turn this setting off. There is no");
-        configContent.add("# performance penalty associated with having metrics enabled, and data sent to bStats");
-        configContent.add("# can't identify your server.");
+        configContent.add("# bStats (https://bStats.org) collects some basic information for plugin authors, like");
+        configContent.add("# how many people use their plugin and their total player count. It's recommended to keep");
+        configContent.add("# bStats enabled, but if you're not comfortable with this, you can turn this setting off.");
+        configContent.add("# There is no performance penalty associated with having metrics enabled, and data sent to");
+        configContent.add("# bStats is fully anonymous.");
         configContent.add("enabled=" + defaultEnabled);
         configContent.add("server-uuid=" + UUID.randomUUID().toString());
         configContent.add("log-errors=false");

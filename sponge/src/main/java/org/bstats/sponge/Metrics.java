@@ -128,11 +128,11 @@ public class Metrics {
         CommentedConfigurationNode node;
 
         String serverUuidComment =
-            "bStats collects some basic information for plugin authors, like how many people use\n" +
-            "their plugin and their total player count. It's recommended to keep bStats enabled, but\n" +
-            "if you're not comfortable with this, you can disable data collection in the Sponge\n" +
-            "configuration file. There is no performance penalty associated with having metrics enabled,\n" +
-            "and data sent to bStats can't identify your server.";
+            "bStats (https://bStats.org) collects some basic information for plugin authors, like how\n" +
+            "many people use their plugin and their total player count. It's recommended to keep bStats\n" +
+            "enabled, but if you're not comfortable with this, you can disable data collection in the\n" +
+            "Sponge configuration file. There is no performance penalty associated with having metrics\n" +
+            "enabled, and data sent to bStats is fully anonymous.";
 
         if (!configFile.exists()) {
             configFile.createNewFile();
