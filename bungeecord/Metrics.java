@@ -5,15 +5,19 @@ import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -24,6 +28,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 import javax.net.ssl.HttpsURLConnection;
@@ -90,10 +95,11 @@ public class Metrics {
     if (!configFile.exists()) {
       writeFile(
           configFile,
-          "#bStats collects some data for plugin authors like how many servers are using their plugins.",
-          "#To honor their work, you should not disable it.",
-          "#This has nearly no effect on the server performance!",
-          "#Check out https://bStats.org/ to learn more :)",
+          "# bStats (https://bStats.org) collects some basic information for plugin authors, like how",
+          "# many people use their plugin and their total player count. It's recommended to keep bStats",
+          "# enabled, but if you're not comfortable with this, you can turn this setting off. There is no",
+          "# performance penalty associated with having metrics enabled, and data sent to bStats is fully",
+          "# anonymous.",
           "enabled: true",
           "serverUuid: \"" + UUID.randomUUID() + "\"",
           "logFailedRequests: false",
@@ -147,7 +153,7 @@ public class Metrics {
   public static class MetricsBase {
 
     /** The version of the Metrics class. */
-    public static final String METRICS_VERSION = "2.1.0";
+    public static final String METRICS_VERSION = "2.2.0";
 
     private static final ScheduledExecutorService scheduler =
         Executors.newScheduledThreadPool(1, task -> new Thread(task, "bStats-Metrics"));
@@ -368,9 +374,9 @@ public class Metrics {
     }
   }
 
-  public static class DrilldownPie extends CustomChart {
+  public static class AdvancedBarChart extends CustomChart {
 
-    private final Callable<Map<String, Map<String, Integer>>> callable;
+    private final Callable<Map<String, int[]>> callable;
 
     /**
      * Class constructor.
@@ -378,33 +384,99 @@ public class Metrics {
      * @param chartId The id of the chart.
      * @param callable The callable which is used to request the chart data.
      */
-    public DrilldownPie(String chartId, Callable<Map<String, Map<String, Integer>>> callable) {
+    public AdvancedBarChart(String chartId, Callable<Map<String, int[]>> callable) {
       super(chartId);
       this.callable = callable;
     }
 
     @Override
-    public JsonObjectBuilder.JsonObject getChartData() throws Exception {
+    protected JsonObjectBuilder.JsonObject getChartData() throws Exception {
       JsonObjectBuilder valuesBuilder = new JsonObjectBuilder();
-      Map<String, Map<String, Integer>> map = callable.call();
+      Map<String, int[]> map = callable.call();
       if (map == null || map.isEmpty()) {
         // Null = skip the chart
         return null;
       }
-      boolean reallyAllSkipped = true;
-      for (Map.Entry<String, Map<String, Integer>> entryValues : map.entrySet()) {
-        JsonObjectBuilder valueBuilder = new JsonObjectBuilder();
-        boolean allSkipped = true;
-        for (Map.Entry<String, Integer> valueEntry : map.get(entryValues.getKey()).entrySet()) {
-          valueBuilder.appendField(valueEntry.getKey(), valueEntry.getValue());
-          allSkipped = false;
+      boolean allSkipped = true;
+      for (Map.Entry<String, int[]> entry : map.entrySet()) {
+        if (entry.getValue().length == 0) {
+          // Skip this invalid
+          continue;
         }
-        if (!allSkipped) {
-          reallyAllSkipped = false;
-          valuesBuilder.appendField(entryValues.getKey(), valueBuilder.build());
-        }
+        allSkipped = false;
+        valuesBuilder.appendField(entry.getKey(), entry.getValue());
       }
-      if (reallyAllSkipped) {
+      if (allSkipped) {
+        // Null = skip the chart
+        return null;
+      }
+      return new JsonObjectBuilder().appendField("values", valuesBuilder.build()).build();
+    }
+  }
+
+  public static class SimpleBarChart extends CustomChart {
+
+    private final Callable<Map<String, Integer>> callable;
+
+    /**
+     * Class constructor.
+     *
+     * @param chartId The id of the chart.
+     * @param callable The callable which is used to request the chart data.
+     */
+    public SimpleBarChart(String chartId, Callable<Map<String, Integer>> callable) {
+      super(chartId);
+      this.callable = callable;
+    }
+
+    @Override
+    protected JsonObjectBuilder.JsonObject getChartData() throws Exception {
+      JsonObjectBuilder valuesBuilder = new JsonObjectBuilder();
+      Map<String, Integer> map = callable.call();
+      if (map == null || map.isEmpty()) {
+        // Null = skip the chart
+        return null;
+      }
+      for (Map.Entry<String, Integer> entry : map.entrySet()) {
+        valuesBuilder.appendField(entry.getKey(), new int[] {entry.getValue()});
+      }
+      return new JsonObjectBuilder().appendField("values", valuesBuilder.build()).build();
+    }
+  }
+
+  public static class MultiLineChart extends CustomChart {
+
+    private final Callable<Map<String, Integer>> callable;
+
+    /**
+     * Class constructor.
+     *
+     * @param chartId The id of the chart.
+     * @param callable The callable which is used to request the chart data.
+     */
+    public MultiLineChart(String chartId, Callable<Map<String, Integer>> callable) {
+      super(chartId);
+      this.callable = callable;
+    }
+
+    @Override
+    protected JsonObjectBuilder.JsonObject getChartData() throws Exception {
+      JsonObjectBuilder valuesBuilder = new JsonObjectBuilder();
+      Map<String, Integer> map = callable.call();
+      if (map == null || map.isEmpty()) {
+        // Null = skip the chart
+        return null;
+      }
+      boolean allSkipped = true;
+      for (Map.Entry<String, Integer> entry : map.entrySet()) {
+        if (entry.getValue() == 0) {
+          // Skip this invalid
+          continue;
+        }
+        allSkipped = false;
+        valuesBuilder.appendField(entry.getKey(), entry.getValue());
+      }
+      if (allSkipped) {
         // Null = skip the chart
         return null;
       }
@@ -452,128 +524,6 @@ public class Metrics {
     }
   }
 
-  public static class SingleLineChart extends CustomChart {
-
-    private final Callable<Integer> callable;
-
-    /**
-     * Class constructor.
-     *
-     * @param chartId The id of the chart.
-     * @param callable The callable which is used to request the chart data.
-     */
-    public SingleLineChart(String chartId, Callable<Integer> callable) {
-      super(chartId);
-      this.callable = callable;
-    }
-
-    @Override
-    protected JsonObjectBuilder.JsonObject getChartData() throws Exception {
-      int value = callable.call();
-      if (value == 0) {
-        // Null = skip the chart
-        return null;
-      }
-      return new JsonObjectBuilder().appendField("value", value).build();
-    }
-  }
-
-  public static class SimpleBarChart extends CustomChart {
-
-    private final Callable<Map<String, Integer>> callable;
-
-    /**
-     * Class constructor.
-     *
-     * @param chartId The id of the chart.
-     * @param callable The callable which is used to request the chart data.
-     */
-    public SimpleBarChart(String chartId, Callable<Map<String, Integer>> callable) {
-      super(chartId);
-      this.callable = callable;
-    }
-
-    @Override
-    protected JsonObjectBuilder.JsonObject getChartData() throws Exception {
-      JsonObjectBuilder valuesBuilder = new JsonObjectBuilder();
-      Map<String, Integer> map = callable.call();
-      if (map == null || map.isEmpty()) {
-        // Null = skip the chart
-        return null;
-      }
-      for (Map.Entry<String, Integer> entry : map.entrySet()) {
-        valuesBuilder.appendField(entry.getKey(), new int[] {entry.getValue()});
-      }
-      return new JsonObjectBuilder().appendField("values", valuesBuilder.build()).build();
-    }
-  }
-
-  public static class AdvancedBarChart extends CustomChart {
-
-    private final Callable<Map<String, int[]>> callable;
-
-    /**
-     * Class constructor.
-     *
-     * @param chartId The id of the chart.
-     * @param callable The callable which is used to request the chart data.
-     */
-    public AdvancedBarChart(String chartId, Callable<Map<String, int[]>> callable) {
-      super(chartId);
-      this.callable = callable;
-    }
-
-    @Override
-    protected JsonObjectBuilder.JsonObject getChartData() throws Exception {
-      JsonObjectBuilder valuesBuilder = new JsonObjectBuilder();
-      Map<String, int[]> map = callable.call();
-      if (map == null || map.isEmpty()) {
-        // Null = skip the chart
-        return null;
-      }
-      boolean allSkipped = true;
-      for (Map.Entry<String, int[]> entry : map.entrySet()) {
-        if (entry.getValue().length == 0) {
-          // Skip this invalid
-          continue;
-        }
-        allSkipped = false;
-        valuesBuilder.appendField(entry.getKey(), entry.getValue());
-      }
-      if (allSkipped) {
-        // Null = skip the chart
-        return null;
-      }
-      return new JsonObjectBuilder().appendField("values", valuesBuilder.build()).build();
-    }
-  }
-
-  public static class SimplePie extends CustomChart {
-
-    private final Callable<String> callable;
-
-    /**
-     * Class constructor.
-     *
-     * @param chartId The id of the chart.
-     * @param callable The callable which is used to request the chart data.
-     */
-    public SimplePie(String chartId, Callable<String> callable) {
-      super(chartId);
-      this.callable = callable;
-    }
-
-    @Override
-    protected JsonObjectBuilder.JsonObject getChartData() throws Exception {
-      String value = callable.call();
-      if (value == null || value.isEmpty()) {
-        // Null = skip the chart
-        return null;
-      }
-      return new JsonObjectBuilder().appendField("value", value).build();
-    }
-  }
-
   public abstract static class CustomChart {
 
     private final String chartId;
@@ -608,9 +558,9 @@ public class Metrics {
     protected abstract JsonObjectBuilder.JsonObject getChartData() throws Exception;
   }
 
-  public static class MultiLineChart extends CustomChart {
+  public static class SingleLineChart extends CustomChart {
 
-    private final Callable<Map<String, Integer>> callable;
+    private final Callable<Integer> callable;
 
     /**
      * Class constructor.
@@ -618,29 +568,85 @@ public class Metrics {
      * @param chartId The id of the chart.
      * @param callable The callable which is used to request the chart data.
      */
-    public MultiLineChart(String chartId, Callable<Map<String, Integer>> callable) {
+    public SingleLineChart(String chartId, Callable<Integer> callable) {
       super(chartId);
       this.callable = callable;
     }
 
     @Override
     protected JsonObjectBuilder.JsonObject getChartData() throws Exception {
+      int value = callable.call();
+      if (value == 0) {
+        // Null = skip the chart
+        return null;
+      }
+      return new JsonObjectBuilder().appendField("value", value).build();
+    }
+  }
+
+  public static class SimplePie extends CustomChart {
+
+    private final Callable<String> callable;
+
+    /**
+     * Class constructor.
+     *
+     * @param chartId The id of the chart.
+     * @param callable The callable which is used to request the chart data.
+     */
+    public SimplePie(String chartId, Callable<String> callable) {
+      super(chartId);
+      this.callable = callable;
+    }
+
+    @Override
+    protected JsonObjectBuilder.JsonObject getChartData() throws Exception {
+      String value = callable.call();
+      if (value == null || value.isEmpty()) {
+        // Null = skip the chart
+        return null;
+      }
+      return new JsonObjectBuilder().appendField("value", value).build();
+    }
+  }
+
+  public static class DrilldownPie extends CustomChart {
+
+    private final Callable<Map<String, Map<String, Integer>>> callable;
+
+    /**
+     * Class constructor.
+     *
+     * @param chartId The id of the chart.
+     * @param callable The callable which is used to request the chart data.
+     */
+    public DrilldownPie(String chartId, Callable<Map<String, Map<String, Integer>>> callable) {
+      super(chartId);
+      this.callable = callable;
+    }
+
+    @Override
+    public JsonObjectBuilder.JsonObject getChartData() throws Exception {
       JsonObjectBuilder valuesBuilder = new JsonObjectBuilder();
-      Map<String, Integer> map = callable.call();
+      Map<String, Map<String, Integer>> map = callable.call();
       if (map == null || map.isEmpty()) {
         // Null = skip the chart
         return null;
       }
-      boolean allSkipped = true;
-      for (Map.Entry<String, Integer> entry : map.entrySet()) {
-        if (entry.getValue() == 0) {
-          // Skip this invalid
-          continue;
+      boolean reallyAllSkipped = true;
+      for (Map.Entry<String, Map<String, Integer>> entryValues : map.entrySet()) {
+        JsonObjectBuilder valueBuilder = new JsonObjectBuilder();
+        boolean allSkipped = true;
+        for (Map.Entry<String, Integer> valueEntry : map.get(entryValues.getKey()).entrySet()) {
+          valueBuilder.appendField(valueEntry.getKey(), valueEntry.getValue());
+          allSkipped = false;
         }
-        allSkipped = false;
-        valuesBuilder.appendField(entry.getKey(), entry.getValue());
+        if (!allSkipped) {
+          reallyAllSkipped = false;
+          valuesBuilder.appendField(entryValues.getKey(), valueBuilder.build());
+        }
       }
-      if (allSkipped) {
+      if (reallyAllSkipped) {
         // Null = skip the chart
         return null;
       }
@@ -850,6 +856,164 @@ public class Metrics {
       @Override
       public String toString() {
         return value;
+      }
+    }
+  }
+
+  /**
+   * A simple config for bStats.
+   *
+   * <p>This class is not used by every platform.
+   */
+  public static class MetricsConfig {
+
+    private final File file;
+
+    private final boolean defaultEnabled;
+
+    private String serverUUID;
+
+    private boolean enabled;
+
+    private boolean logErrors;
+
+    private boolean logSentData;
+
+    private boolean logResponseStatusText;
+
+    private boolean didExistBefore = true;
+
+    public MetricsConfig(File file, boolean defaultEnabled) throws IOException {
+      this.file = file;
+      this.defaultEnabled = defaultEnabled;
+      setupConfig();
+    }
+
+    public String getServerUUID() {
+      return serverUUID;
+    }
+
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    public boolean isLogErrorsEnabled() {
+      return logErrors;
+    }
+
+    public boolean isLogSentDataEnabled() {
+      return logSentData;
+    }
+
+    public boolean isLogResponseStatusTextEnabled() {
+      return logResponseStatusText;
+    }
+
+    /**
+     * Checks whether the config file did exist before or not.
+     *
+     * @return If the config did exist before.
+     */
+    public boolean didExistBefore() {
+      return didExistBefore;
+    }
+
+    /** Creates the config file if it does not exist and read its content. */
+    private void setupConfig() throws IOException {
+      if (!file.exists()) {
+        // Looks like it's the first time we create it (or someone deleted it).
+        didExistBefore = false;
+        writeConfig();
+      }
+      readConfig();
+      if (serverUUID == null) {
+        // Found a malformed config file with no UUID. Let's recreate it.
+        writeConfig();
+        readConfig();
+      }
+    }
+
+    /** Creates a config file with teh default content. */
+    private void writeConfig() throws IOException {
+      List<String> configContent = new ArrayList<>();
+      configContent.add(
+          "# bStats (https://bStats.org) collects some basic information for plugin authors, like");
+      configContent.add(
+          "# how many people use their plugin and their total player count. It's recommended to keep");
+      configContent.add(
+          "# bStats enabled, but if you're not comfortable with this, you can turn this setting off.");
+      configContent.add(
+          "# There is no performance penalty associated with having metrics enabled, and data sent to");
+      configContent.add("# bStats is fully anonymous.");
+      configContent.add("enabled=" + defaultEnabled);
+      configContent.add("server-uuid=" + UUID.randomUUID().toString());
+      configContent.add("log-errors=false");
+      configContent.add("log-sent-data=false");
+      configContent.add("log-response-status-text=false");
+      writeFile(file, configContent);
+    }
+
+    /** Reads the content of the config file. */
+    private void readConfig() throws IOException {
+      List<String> lines = readFile(file);
+      if (lines == null) {
+        throw new AssertionError("Content of newly created file is null");
+      }
+      enabled = getConfigValue("enabled", lines).map("true"::equals).orElse(true);
+      serverUUID = getConfigValue("server-uuid", lines).orElse(null);
+      logErrors = getConfigValue("log-errors", lines).map("true"::equals).orElse(false);
+      logSentData = getConfigValue("log-sent-data", lines).map("true"::equals).orElse(false);
+      logResponseStatusText =
+          getConfigValue("log-response-status-text", lines).map("true"::equals).orElse(false);
+    }
+
+    /**
+     * Gets a config setting from the given list of lines of the file.
+     *
+     * @param key The key for the setting.
+     * @param lines The lines of the file.
+     * @return The value of the setting.
+     */
+    private Optional<String> getConfigValue(String key, List<String> lines) {
+      return lines.stream()
+          .filter(line -> line.startsWith(key + "="))
+          .map(line -> line.replaceFirst(Pattern.quote(key + "="), ""))
+          .findFirst();
+    }
+
+    /**
+     * Reads the text content of the given file.
+     *
+     * @param file The file to read.
+     * @return The lines of the given file.
+     */
+    private List<String> readFile(File file) throws IOException {
+      if (!file.exists()) {
+        return null;
+      }
+      try (FileReader fileReader = new FileReader(file);
+          BufferedReader bufferedReader = new BufferedReader(fileReader)) {
+        return bufferedReader.lines().collect(Collectors.toList());
+      }
+    }
+
+    /**
+     * Writes the given lines to the given file.
+     *
+     * @param file The file to write to.
+     * @param lines The lines to write.
+     */
+    private void writeFile(File file, List<String> lines) throws IOException {
+      if (!file.exists()) {
+        file.getParentFile().mkdirs();
+        file.createNewFile();
+      }
+      try (FileWriter fileWriter = new FileWriter(file);
+          BufferedWriter bufferedWriter = new BufferedWriter(fileWriter)) {
+        for (String line : lines) {
+          bufferedWriter.write(line);
+          bufferedWriter.newLine();
+        }
       }
     }
   }

@@ -1,5 +1,10 @@
-package org.bstats.bukkit;
+package org.bstats.velocity;
 
+import com.google.inject.Inject;
+import com.velocitypowered.api.plugin.PluginContainer;
+import com.velocitypowered.api.plugin.PluginDescription;
+import com.velocitypowered.api.plugin.annotation.DataDirectory;
+import com.velocitypowered.api.proxy.ProxyServer;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
@@ -9,12 +14,11 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -29,78 +33,97 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.logging.Level;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 import javax.net.ssl.HttpsURLConnection;
-import org.bukkit.Bukkit;
-import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.java.JavaPlugin;
+import org.slf4j.Logger;
 
 public class Metrics {
 
-  private final Plugin plugin;
+  /** A factory to create new Metrics classes. */
+  public static class Factory {
 
-  private final MetricsBase metricsBase;
+    private final ProxyServer server;
 
-  /**
-   * Creates a new Metrics instance.
-   *
-   * @param plugin Your plugin instance.
-   * @param serviceId The id of the service. It can be found at <a
-   *     href="https://bstats.org/what-is-my-plugin-id">What is my plugin id?</a>
-   */
-  public Metrics(JavaPlugin plugin, int serviceId) {
-    this.plugin = plugin;
-    // Get the config file
-    File bStatsFolder = new File(plugin.getDataFolder().getParentFile(), "bStats");
-    File configFile = new File(bStatsFolder, "config.yml");
-    YamlConfiguration config = YamlConfiguration.loadConfiguration(configFile);
-    if (!config.isSet("serverUuid")) {
-      config.addDefault("enabled", true);
-      config.addDefault("serverUuid", UUID.randomUUID().toString());
-      config.addDefault("logFailedRequests", false);
-      config.addDefault("logSentData", false);
-      config.addDefault("logResponseStatusText", false);
-      // Inform the server owners about bStats
-      config
-          .options()
-          .header(
-              "bStats (https://bStats.org) collects some basic information for plugin authors, like how\n"
-                  + "many people use their plugin and their total player count. It's recommended to keep bStats\n"
-                  + "enabled, but if you're not comfortable with this, you can turn this setting off. There is no\n"
-                  + "performance penalty associated with having metrics enabled, and data sent to bStats is fully\n"
-                  + "anonymous.")
-          .copyDefaults(true);
-      try {
-        config.save(configFile);
-      } catch (IOException ignored) {
-      }
+    private final Logger logger;
+
+    private final Path dataDirectory;
+
+    // The constructor is not meant to be called by the user.
+    // The instance is created using Dependency Injection
+    @Inject
+    private Factory(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
+      this.server = server;
+      this.logger = logger;
+      this.dataDirectory = dataDirectory;
     }
-    // Load the data
-    boolean enabled = config.getBoolean("enabled", true);
-    String serverUUID = config.getString("serverUuid");
-    boolean logErrors = config.getBoolean("logFailedRequests", false);
-    boolean logSentData = config.getBoolean("logSentData", false);
-    boolean logResponseStatusText = config.getBoolean("logResponseStatusText", false);
+
+    /**
+     * Creates a new Metrics class.
+     *
+     * @param plugin The plugin instance.
+     * @param serviceId The id of the service. It can be found at <a
+     *     href="https://bstats.org/what-is-my-plugin-id">What is my plugin id?</a>
+     *     <p>Not to be confused with Velocity's {@link PluginDescription#getId()} method!
+     * @return A Metrics instance that can be used to register custom charts.
+     *     <p>The return value can be ignored, when you do not want to register custom charts.
+     */
+    public Metrics make(Object plugin, int serviceId) {
+      return new Metrics(plugin, server, logger, dataDirectory, serviceId);
+    }
+  }
+
+  private final PluginContainer pluginContainer;
+
+  private final ProxyServer server;
+
+  private MetricsBase metricsBase;
+
+  private Metrics(
+      Object plugin, ProxyServer server, Logger logger, Path dataDirectory, int serviceId) {
+    pluginContainer =
+        server
+            .getPluginManager()
+            .fromInstance(plugin)
+            .orElseThrow(
+                () -> new IllegalArgumentException("The provided instance is not a plugin"));
+    this.server = server;
+    File configFile = dataDirectory.getParent().resolve("bStats").resolve("config.txt").toFile();
+    MetricsConfig config;
+    try {
+      config = new MetricsConfig(configFile, true);
+    } catch (IOException e) {
+      logger.error("Failed to create bStats config", e);
+      return;
+    }
     metricsBase =
         new MetricsBase(
-            "bukkit",
-            serverUUID,
+            "velocity",
+            config.getServerUUID(),
             serviceId,
-            enabled,
+            config.isEnabled(),
             this::appendPlatformData,
             this::appendServiceData,
-            submitDataTask -> Bukkit.getScheduler().runTask(plugin, submitDataTask),
-            plugin::isEnabled,
-            (message, error) -> this.plugin.getLogger().log(Level.WARNING, message, error),
-            (message) -> this.plugin.getLogger().log(Level.INFO, message),
-            logErrors,
-            logSentData,
-            logResponseStatusText);
+            task -> server.getScheduler().buildTask(plugin, task).schedule(),
+            () -> true,
+            logger::warn,
+            logger::info,
+            config.isLogErrorsEnabled(),
+            config.isLogSentDataEnabled(),
+            config.isLogResponseStatusTextEnabled());
+    if (!config.didExistBefore()) {
+      // Send an info message when the bStats config file gets created for the first time
+      logger.info(
+          "Velocity and some of its plugins collect metrics and send them to bStats (https://bStats.org).");
+      logger.info(
+          "bStats collects some basic information for plugin authors, like how many people use");
+      logger.info(
+          "their plugin and their total player count. It's recommend to keep bStats enabled, but");
+      logger.info(
+          "if you're not comfortable with this, you can opt-out by editing the config.txt file in");
+      logger.info("the '/plugins/bStats/' folder and setting enabled to false.");
+    }
   }
 
   /**
@@ -109,14 +132,18 @@ public class Metrics {
    * @param chart The chart to add.
    */
   public void addCustomChart(CustomChart chart) {
-    metricsBase.addCustomChart(chart);
+    if (metricsBase != null) {
+      metricsBase.addCustomChart(chart);
+    }
   }
 
   private void appendPlatformData(JsonObjectBuilder builder) {
-    builder.appendField("playerAmount", getPlayerAmount());
-    builder.appendField("onlineMode", Bukkit.getOnlineMode() ? 1 : 0);
-    builder.appendField("bukkitVersion", Bukkit.getVersion());
-    builder.appendField("bukkitName", Bukkit.getName());
+    builder.appendField("playerAmount", server.getPlayerCount());
+    builder.appendField("managedServers", server.getAllServers().size());
+    builder.appendField("onlineMode", server.getConfiguration().isOnlineMode() ? 1 : 0);
+    builder.appendField("velocityVersionVersion", server.getVersion().getVersion());
+    builder.appendField("velocityVersionName", server.getVersion().getName());
+    builder.appendField("velocityVersionVendor", server.getVersion().getVendor());
     builder.appendField("javaVersion", System.getProperty("java.version"));
     builder.appendField("osName", System.getProperty("os.name"));
     builder.appendField("osArch", System.getProperty("os.arch"));
@@ -125,22 +152,8 @@ public class Metrics {
   }
 
   private void appendServiceData(JsonObjectBuilder builder) {
-    builder.appendField("pluginVersion", plugin.getDescription().getVersion());
-  }
-
-  private int getPlayerAmount() {
-    try {
-      // Around MC 1.8 the return type was changed from an array to a collection,
-      // This fixes java.lang.NoSuchMethodError:
-      // org.bukkit.Bukkit.getOnlinePlayers()Ljava/util/Collection;
-      Method onlinePlayersMethod = Class.forName("org.bukkit.Server").getMethod("getOnlinePlayers");
-      return onlinePlayersMethod.getReturnType().equals(Collection.class)
-          ? ((Collection<?>) onlinePlayersMethod.invoke(Bukkit.getServer())).size()
-          : ((Player[]) onlinePlayersMethod.invoke(Bukkit.getServer())).length;
-    } catch (Exception e) {
-      // Just use the new method if the reflection failed
-      return Bukkit.getOnlinePlayers().size();
-    }
+    builder.appendField(
+        "pluginVersion", pluginContainer.getDescription().getVersion().orElse("unknown"));
   }
 
   public static class MetricsBase {
