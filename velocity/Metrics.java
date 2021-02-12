@@ -159,7 +159,7 @@ public class Metrics {
   public static class MetricsBase {
 
     /** The version of the Metrics class. */
-    public static final String METRICS_VERSION = "2.2.0";
+    public static final String METRICS_VERSION = "2.2.1";
 
     private static final ScheduledExecutorService scheduler =
         Executors.newScheduledThreadPool(1, task -> new Thread(task, "bStats-Metrics"));
