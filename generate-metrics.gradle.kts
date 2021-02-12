@@ -45,7 +45,9 @@ fun enrichPlatformMetricsClass(platform: String, withMetricsConfig: Boolean): St
             }.let {
                 convertClassToInnerClass(it, file("base/src/main/java/org/bstats/json/JsonObjectBuilder.java").readText())
             }.let {
-                convertClassToInnerClass(it, file("base/src/main/java/org/bstats/config/MetricsConfig.java").readText())
+                if (withMetricsConfig) {
+                    convertClassToInnerClass(it, file("base/src/main/java/org/bstats/config/MetricsConfig.java").readText())
+                } else it
             }
 
     return Formatter().formatSource(metrics);
