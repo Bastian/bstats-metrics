@@ -1,5 +1,6 @@
 package org.bstats.charts;
 
+import org.bstats.function.BooleanCallable;
 import org.bstats.json.JsonObjectBuilder;
 
 import java.util.concurrent.Callable;
@@ -17,6 +18,16 @@ public class SimplePie extends CustomChart {
     public SimplePie(String chartId, Callable<String> callable) {
         super(chartId);
         this.callable = callable;
+    }
+
+    /**
+     * Class constructor.
+     *
+     * @param chartId The id of the chart.
+     * @param callable The callable which is used to request the chart data
+     */
+    public SimplePie(String chartId, BooleanCallable callable) {
+        this(chartId, (Callable<String>) callable);
     }
 
     @Override
