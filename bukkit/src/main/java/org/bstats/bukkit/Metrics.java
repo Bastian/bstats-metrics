@@ -88,10 +88,12 @@ public class Metrics {
     public void addCustomChart(CustomChart chart) {
         metricsBase.addCustomChart(chart);
     }
+    
+    
 
     private void appendPlatformData(JsonObjectBuilder builder) {
         builder.appendField("playerAmount", getPlayerAmount());
-        builder.appendField("onlineMode", Bukkit.getOnlineMode() ? 1 : 0);
+        builder.appendField("onlineMode", getOnlineMode());
         builder.appendField("bukkitVersion", Bukkit.getVersion());
         builder.appendField("bukkitName", Bukkit.getName());
 
@@ -104,6 +106,16 @@ public class Metrics {
 
     private void appendServiceData(JsonObjectBuilder builder) {
         builder.appendField("pluginVersion", plugin.getDescription().getVersion());
+    }
+    
+    private Object getOnlineMode() {
+        boolean onlineMode = Bukkit.getOnlineMode();
+        try {
+            if (Class.forName("org.spigotmc.SpigotConfig").getField("bungee").getBoolean(null)) {
+                return "bungee";
+            }
+        } catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException ignored) { }
+        return onlineMode ? 1 : 0;
     }
 
     private int getPlayerAmount() {
