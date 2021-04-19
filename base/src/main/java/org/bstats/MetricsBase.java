@@ -130,7 +130,7 @@ public class MetricsBase {
         // WARNING: You must not modify and part of this Metrics class, including the submit delay or frequency!
         // WARNING: Modifying this code will get your plugin banned on bStats. Just don't do it!
         long initialDelay = (long) (1000 * 60 * (3 + Math.random() * 3));
-        long secondDelay = (long) (1000 * 60 * (Math.random() * 30));
+        long secondDelay = (long) (1000 * 60 * (6 + Math.random() * 24));
         scheduler.schedule(submitTask, initialDelay, TimeUnit.MILLISECONDS);
         scheduler.scheduleAtFixedRate(submitTask, initialDelay + secondDelay, 1000 * 60 * 30, TimeUnit.MILLISECONDS);
     }
