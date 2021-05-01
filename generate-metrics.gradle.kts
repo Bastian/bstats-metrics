@@ -50,7 +50,24 @@ fun enrichPlatformMetricsClass(platform: String, withMetricsConfig: Boolean): St
                 } else it
             }
 
-    return Formatter().formatSource(metrics);
+    val sourceCode = Formatter().formatSource(metrics)
+    val header = """
+        /*
+         * This Metrics class was auto-generated and can be copied into your project if you are
+         * not using a build tool like Gradle or Maven for dependency management.
+         *
+         * IMPORTANT: You are not allowed to modify this class, except changing the package.
+         *
+         * Unallowed modifications include but are not limited to:
+         *  - Remove the option for users to opt-out
+         *  - Change the frequency for data submission
+         *  - Obfuscate the code (every obfucator should allow you to make an exception for specific files)
+         *  - Reformat the code (if you use a linter, add an exception)
+         *
+         * Violations will result in a ban of your plugin and account from bStats.
+         */
+    """.trimIndent()
+    return header + "\n" + sourceCode
 }
 
 /**
