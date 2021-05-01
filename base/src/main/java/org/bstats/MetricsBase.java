@@ -103,7 +103,7 @@ public class MetricsBase {
 
         checkRelocation();
 
-        if (enabled) {
+        if (enabled) { // WARNING: Removing the option to opt-out will get your plugin banned from bStats
             startSubmitting();
         }
     }
