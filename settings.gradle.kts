@@ -1,2 +1,2 @@
 rootProject.name = "bstats-metrics"
-include("base", "bukkit", "bungeecord", "sponge", "velocity")
+include("base", "bukkit", "bungeecord", "krypton", "sponge", "velocity")
