@@ -4,11 +4,11 @@ import com.google.inject.Inject;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -142,11 +142,11 @@ public class Metrics {
 
   /** Loads the bStats configuration. */
   private void loadConfig() throws IOException {
-    File configPath = configDir.resolve("bStats").toFile();
-    configPath.mkdirs();
-    File configFile = new File(configPath, "config.conf");
+    Path configPath = configDir.resolve("bStats");
+    Files.createDirectories(configPath);
+    Path configFile = configPath.resolve("config.conf");
     HoconConfigurationLoader configurationLoader =
-        HoconConfigurationLoader.builder().setFile(configFile).build();
+        HoconConfigurationLoader.builder().setPath(configFile).build();
     CommentedConfigurationNode node;
     String serverUuidComment =
         "bStats (https://bStats.org) collects some basic information for plugin authors, like how\n"
@@ -154,8 +154,8 @@ public class Metrics {
             + "enabled, but if you're not comfortable with this, you can disable data collection in the\n"
             + "Sponge configuration file. There is no performance penalty associated with having metrics\n"
             + "enabled, and data sent to bStats is fully anonymous.";
-    if (!configFile.exists()) {
-      configFile.createNewFile();
+    if (Files.notExists(configFile)) {
+      Files.createFile(configFile);
       node = configurationLoader.load();
       node.getNode("serverUuid").setValue(UUID.randomUUID().toString());
       node.getNode("logFailedRequests").setValue(false);
