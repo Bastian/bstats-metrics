@@ -49,7 +49,7 @@ public class MetricsBase {
     private final boolean logResponseStatusText;
 
     private final Set<CustomChart> customCharts = new HashSet<>();
-    private final boolean enabled;
+    private static boolean enabled;
 
     /**
      * Creates a new MetricsBase class instance.
@@ -237,6 +237,15 @@ public class MetricsBase {
             gzip.write(str.getBytes(StandardCharsets.UTF_8));
         }
         return outputStream.toByteArray();
+    }
+    
+     /**
+     * Checks if bStats is enabled.
+     *
+     * @return Whether bStats is enabled or not.
+     */
+    public static boolean isEnabled() {
+        return enabled;
     }
 
 }
