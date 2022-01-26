@@ -10,7 +10,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("org.spongepowered:spongeapi:7.1.0")
+    compileOnly("org.spongepowered:spongeapi:8.0.0")
     api(project(":base")) {
         isTransitive = true
     }

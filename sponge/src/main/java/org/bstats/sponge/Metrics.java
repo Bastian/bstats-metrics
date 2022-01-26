@@ -1,20 +1,21 @@
 package org.bstats.sponge;
 
 import com.google.inject.Inject;
-import ninja.leaping.configurate.commented.CommentedConfigurationNode;
-import ninja.leaping.configurate.hocon.HoconConfigurationLoader;
 import org.bstats.MetricsBase;
 import org.bstats.charts.CustomChart;
 import org.bstats.json.JsonObjectBuilder;
-import org.slf4j.Logger;
+import org.spongepowered.api.Engine;
 import org.spongepowered.api.Platform;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.config.ConfigDir;
 import org.spongepowered.api.event.Listener;
-import org.spongepowered.api.event.game.state.GamePreInitializationEvent;
-import org.spongepowered.api.plugin.PluginContainer;
+import org.spongepowered.api.event.lifecycle.StartingEngineEvent;
 import org.spongepowered.api.scheduler.Scheduler;
 import org.spongepowered.api.scheduler.Task;
+import org.spongepowered.configurate.CommentedConfigurationNode;
+import org.spongepowered.configurate.hocon.HoconConfigurationLoader;
+import org.spongepowered.plugin.PluginContainer;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -46,7 +47,7 @@ public class Metrics {
          *
          * @param serviceId The id of the service.
          *                  It can be found at <a href="https://bstats.org/what-is-my-plugin-id">What is my plugin id?</a>
-         *                  <p>Not to be confused with Sponge's {@link PluginContainer#getId()} method!
+         *                  <p>Not to be confused with Sponge's {@link org.spongepowered.plugin.metadata.PluginMetadata#id()} method!
          * @return A Metrics instance that can be used to register custom charts.
          * <p>The return value can be ignored, when you do not want to register custom charts.
          */
@@ -73,11 +74,11 @@ public class Metrics {
         this.configDir = configDir;
         this.serviceId = serviceId;
 
-        Sponge.getEventManager().registerListeners(plugin, this);
+        Sponge.eventManager().registerListeners(plugin, this);
     }
 
     @Listener
-    public void startup(GamePreInitializationEvent event) {
+    public void startup(StartingEngineEvent<Engine> event) {
         try {
             loadConfig();
         } catch (IOException e) {
@@ -90,13 +91,13 @@ public class Metrics {
                 "sponge",
                 serverUUID,
                 serviceId,
-                Sponge.getMetricsConfigManager().areMetricsEnabled(plugin),
+                Sponge.metricsConfigManager().effectiveCollectionState(plugin).asBoolean(),
                 this::appendPlatformData,
                 this::appendServiceData,
                 task -> {
-                    Scheduler scheduler = Sponge.getScheduler();
-                    Task.Builder taskBuilder = scheduler.createTaskBuilder();
-                    taskBuilder.execute(task).submit(plugin);
+                    Scheduler scheduler = Sponge.asyncScheduler();
+                    Task.Builder taskBuilder = Task.builder();
+                    scheduler.submit(taskBuilder.execute(task).plugin(plugin).build());
                 },
                 () -> true,
                 logger::warn,
@@ -107,8 +108,8 @@ public class Metrics {
         );
 
         StringBuilder builder = new StringBuilder().append(System.lineSeparator());
-        builder.append("Plugin ").append(plugin.getName()).append(" is using bStats Metrics ");
-        if (Sponge.getMetricsConfigManager().areMetricsEnabled(plugin)) {
+        builder.append("Plugin ").append(plugin.metadata().name().orElse(plugin.metadata().id())).append(" is using bStats Metrics ");
+        if (Sponge.metricsConfigManager().effectiveCollectionState(plugin).asBoolean()) {
             builder.append(" and is allowed to send data.");
         } else {
             builder.append(" but currently has data sending disabled.").append(System.lineSeparator());
@@ -124,7 +125,7 @@ public class Metrics {
         File configPath = configDir.resolve("bStats").toFile();
         configPath.mkdirs();
         File configFile = new File(configPath, "config.conf");
-        HoconConfigurationLoader configurationLoader = HoconConfigurationLoader.builder().setFile(configFile).build();
+        HoconConfigurationLoader configurationLoader = HoconConfigurationLoader.builder().file(configFile).build();
         CommentedConfigurationNode node;
 
         String serverUuidComment =
@@ -138,36 +139,36 @@ public class Metrics {
             configFile.createNewFile();
             node = configurationLoader.load();
 
-            node.getNode("serverUuid").setValue(UUID.randomUUID().toString());
-            node.getNode("logFailedRequests").setValue(false);
-            node.getNode("logSentData").setValue(false);
-            node.getNode("logResponseStatusText").setValue(false);
-            node.getNode("serverUuid").setComment(serverUuidComment);
-            node.getNode("configVersion").setValue(2);
+            node.node("serverUuid").set(UUID.randomUUID().toString());
+            node.node("logFailedRequests").set(false);
+            node.node("logSentData").set(false);
+            node.node("logResponseStatusText").set(false);
+            node.node("serverUuid").set(serverUuidComment);
+            node.node("configVersion").set(2);
 
             configurationLoader.save(node);
         } else {
             node = configurationLoader.load();
 
-            if (!node.getNode("configVersion").isVirtual()) {
+            if (!node.node("configVersion").virtual()) {
 
-                node.getNode("configVersion").setValue(2);
+                node.node("configVersion").set(2);
 
-                node.getNode("enabled").setComment(
+                node.node("enabled").comment(
                         "Enabling bStats in this file is deprecated. At least one of your plugins now uses the\n" +
                         "Sponge config to control bStats. Leave this value as you want it to be for outdated plugins,\n" +
                         "but look there for further control");
 
-                node.getNode("serverUuid").setComment(serverUuidComment);
+                node.node("serverUuid").comment(serverUuidComment);
                 configurationLoader.save(node);
             }
         }
 
         // Load configuration
-        serverUUID = node.getNode("serverUuid").getString();
-        logErrors = node.getNode("logFailedRequests").getBoolean(false);
-        logSentData = node.getNode("logSentData").getBoolean(false);
-        logResponseStatusText = node.getNode("logResponseStatusText").getBoolean(false);
+        serverUUID = node.node("serverUuid").getString();
+        logErrors = node.node("logFailedRequests").getBoolean(false);
+        logSentData = node.node("logSentData").getBoolean(false);
+        logResponseStatusText = node.node("logResponseStatusText").getBoolean(false);
     }
 
     /**
@@ -180,10 +181,10 @@ public class Metrics {
     }
 
     private void appendPlatformData(JsonObjectBuilder builder) {
-        builder.appendField("playerAmount",  Sponge.getServer().getOnlinePlayers().size());
-        builder.appendField("onlineMode", Sponge.getServer().getOnlineMode() ? 1 : 0);
-        builder.appendField("minecraftVersion", Sponge.getGame().getPlatform().getMinecraftVersion().getName());
-        builder.appendField("spongeImplementation", Sponge.getPlatform().getContainer(Platform.Component.IMPLEMENTATION).getName());
+        builder.appendField("playerAmount",  Sponge.server().onlinePlayers().size());
+        builder.appendField("onlineMode", Sponge.server().isOnlineModeEnabled() ? 1 : 0);
+        builder.appendField("minecraftVersion", Sponge.game().platform().minecraftVersion().name());
+        builder.appendField("spongeImplementation", Sponge.platform().container(Platform.Component.IMPLEMENTATION).metadata().id());
 
         builder.appendField("javaVersion", System.getProperty("java.version"));
         builder.appendField("osName", System.getProperty("os.name"));
@@ -193,7 +194,7 @@ public class Metrics {
     }
 
     private void appendServiceData(JsonObjectBuilder builder) {
-        builder.appendField("pluginVersion", plugin.getVersion().orElse("unknown"));
+        builder.appendField("pluginVersion", plugin.metadata().version().toString());
     }
 
 }
