@@ -1,21 +1,20 @@
 package org.bstats.sponge;
 
 import com.google.inject.Inject;
+import org.apache.logging.log4j.Logger;
 import org.bstats.MetricsBase;
 import org.bstats.charts.CustomChart;
 import org.bstats.json.JsonObjectBuilder;
-import org.spongepowered.api.Engine;
 import org.spongepowered.api.Platform;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.config.ConfigDir;
 import org.spongepowered.api.event.Listener;
-import org.spongepowered.api.event.lifecycle.StartingEngineEvent;
+import org.spongepowered.api.event.lifecycle.ConstructPluginEvent;
 import org.spongepowered.api.scheduler.Scheduler;
 import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.configurate.CommentedConfigurationNode;
 import org.spongepowered.configurate.hocon.HoconConfigurationLoader;
 import org.spongepowered.plugin.PluginContainer;
-import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -78,7 +77,7 @@ public class Metrics {
     }
 
     @Listener
-    public void startup(StartingEngineEvent<Engine> event) {
+    public void startup(ConstructPluginEvent event) {
         try {
             loadConfig();
         } catch (IOException e) {
