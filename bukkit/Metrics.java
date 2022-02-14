@@ -23,9 +23,11 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -42,6 +44,7 @@ import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 import javax.net.ssl.HttpsURLConnection;
 import org.bukkit.Bukkit;
+import org.bukkit.configuration.file.FileConfigurationOptions;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -62,10 +65,18 @@ public class Metrics {
    */
   public Metrics(JavaPlugin plugin, int serviceId) {
     this.plugin = plugin;
+    Method methodSetHeader = null;
+    try {
+        methodSetHeader = FileConfigurationOptions.class.getDeclaredMethod("setHeader", new Class[] { String.class });
+  	} catch (NoSuchMethodException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+    }
     // Get the config file
     File bStatsFolder = new File(plugin.getDataFolder().getParentFile(), "bStats");
     File configFile = new File(bStatsFolder, "config.yml");
     YamlConfiguration config = YamlConfiguration.loadConfiguration(configFile);
+    //FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
     if (!config.isSet("serverUuid")) {
       config.addDefault("enabled", true);
       config.addDefault("serverUuid", UUID.randomUUID().toString());
@@ -73,7 +84,19 @@ public class Metrics {
       config.addDefault("logSentData", false);
       config.addDefault("logResponseStatusText", false);
       // Inform the server owners about bStats
-      config
+      if(methodSetHeader != null) {
+    	  List<String> header = new ArrayList<String>();
+          header.add("bStats (https://bStats.org) collects some basic information for plugin authors, like how");
+          header.add("many people use their plugin and their total player count. It's recommended to keep bStats");
+          header.add("enabled, but if you're not comfortable with this, you can turn this setting off. There is no");
+          header.add("performance penalty associated with having metrics enabled, and data sent to bStats is fully");
+          header.add("anonymous.");
+          config
+          .options()
+          .setHeader(header)
+          .copyDefaults(true);
+      } else {
+    	  config
           .options()
           .header(
               "bStats (https://bStats.org) collects some basic information for plugin authors, like how\n"
@@ -82,6 +105,7 @@ public class Metrics {
                   + "performance penalty associated with having metrics enabled, and data sent to bStats is fully\n"
                   + "anonymous.")
           .copyDefaults(true);
+      }
       try {
         config.save(configFile);
       } catch (IOException ignored) {
