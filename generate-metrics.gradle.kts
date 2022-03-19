@@ -58,10 +58,10 @@ fun enrichPlatformMetricsClass(platform: String, withMetricsConfig: Boolean): St
          *
          * IMPORTANT: You are not allowed to modify this class, except changing the package.
          *
-         * Unallowed modifications include but are not limited to:
+         * Disallowed modifications include but are not limited to:
          *  - Remove the option for users to opt-out
          *  - Change the frequency for data submission
-         *  - Obfuscate the code (every obfucator should allow you to make an exception for specific files)
+         *  - Obfuscate the code (every obfuscator should allow you to make an exception for specific files)
          *  - Reformat the code (if you use a linter, add an exception)
          *
          * Violations will result in a ban of your plugin and account from bStats.
