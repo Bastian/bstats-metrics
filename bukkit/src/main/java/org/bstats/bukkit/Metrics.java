@@ -25,9 +25,10 @@ public class Metrics {
      * Creates a new Metrics instance.
      *
      * @param plugin Your plugin instance.
-     * @param serviceId The id of the service.
-     *                  It can be found at <a href="https://bstats.org/what-is-my-plugin-id">What is my plugin id?</a>
+     * @param serviceId The id of the service. It can be found at <a
+     *     href="<a href="https://bstats.org/what-is-my-plugin-id">https://bstats.org/what-is-my-plugin-id</a>">What is my plugin id?</a>
      */
+    
     public Metrics(JavaPlugin plugin, int serviceId) {
         this.plugin = plugin;
 
