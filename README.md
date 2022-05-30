@@ -4,8 +4,25 @@ This repository contains the code for all Java-based Metrics classes.
 
 ## Code Generation
 
-The recommended way to include the Metrics classes is to use a build management tool like Gradle or Maven and
-shade + relocate the required classes.
+### Old way (pre 1.16)
+
+~~The recommended way to include the Metrics classes is to use a build management tool like Gradle or Maven and
+shade + relocate the required classes.~~
+
+### New way (1.16 and later)
+
+Since API 1.16, spigot implemented new solution to make plugins lighter. In order to get this library working, just add
+it to `libraries` section of `plugin.yml` file and server will automatically download the dependency from Maven Central
+and link it to all plugins that uses it.
+
+```
+libraries:
+- org.bstats:bstats:3.0.0
+```
+
+Reference: [Click here](https://www.spigotmc.org/wiki/plugin-yml/#optional-attributes) (scroll a bit down).
+
+---
 
 However, to make bStats more accessible for beginners, a single file Metrics class is automatically generated on every
 release and pushed to the `single-file` branch. This file can simply be copy-and-pasted.

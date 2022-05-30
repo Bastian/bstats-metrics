@@ -23,5 +23,4 @@ java {
 
 tasks.test {
     systemProperty("metrics-version", version.toString())
-    systemProperty("bstats.relocatecheck", "false")
 }
