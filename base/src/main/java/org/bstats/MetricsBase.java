@@ -101,8 +101,6 @@ public class MetricsBase {
         this.logSentData = logSentData;
         this.logResponseStatusText = logResponseStatusText;
 
-        checkRelocation();
-
         if (enabled) { // WARNING: Removing the option to opt-out will get your plugin banned from bStats
             startSubmitting();
         }
@@ -202,23 +200,6 @@ public class MetricsBase {
 
         if (logResponseStatusText) {
             infoLogger.accept("Sent data to bStats and received response: " + builder);
-        }
-    }
-
-    /**
-     * Checks that the class was properly relocated.
-     */
-    private void checkRelocation() {
-        // You can use the property to disable the check in your test environment
-        if (System.getProperty("bstats.relocatecheck") == null || !System.getProperty("bstats.relocatecheck").equals("false")) {
-            // Maven's Relocate is clever and changes strings, too. So we have to use this little "trick" ... :D
-            final String defaultPackage = new String(
-                    new byte[]{'o', 'r', 'g', '.', 'b', 's', 't', 'a', 't', 's'});
-            final String examplePackage = new String(new byte[]{'y', 'o', 'u', 'r', '.', 'p', 'a', 'c', 'k', 'a', 'g', 'e'});
-            // We want to make sure no one just copy & pastes the example and uses the wrong package names
-            if (MetricsBase.class.getPackage().getName().startsWith(defaultPackage) || MetricsBase.class.getPackage().getName().startsWith(examplePackage)) {
-                throw new IllegalStateException("bStats Metrics class has not been relocated correctly!");
-            }
         }
     }
 
