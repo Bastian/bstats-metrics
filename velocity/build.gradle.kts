@@ -5,12 +5,14 @@ plugins {
 repositories {
     mavenCentral()
     maven {
-        url = uri("https://nexus.velocitypowered.com/repository/maven-public/")
+        name = "papermc"
+        url = uri("https://repo.papermc.io/repository/maven-public/")
     }
 }
 
 dependencies {
-    compileOnly("com.velocitypowered:velocity-api:1.1.3")
+    compileOnly("com.velocitypowered:velocity-api:3.1.2-SNAPSHOT")
+    annotationProcessor("com.velocitypowered:velocity-api:3.1.2-SNAPSHOT")
     api(project(":base")) {
         isTransitive = true
     }
@@ -21,8 +23,8 @@ tasks.withType<Test> {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
     withJavadocJar()
     withSourcesJar()
 }

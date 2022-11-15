@@ -9,8 +9,8 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath(group = "com.github.javaparser", name = "javaparser-symbol-solver-core", version = "3.18.0")
-        classpath(group = "com.google.googlejavaformat", name = "google-java-format", version = "1.9")
+        classpath(group = "com.github.javaparser", name = "javaparser-symbol-solver-core", version = "3.24.7")
+        classpath(group = "com.google.googlejavaformat", name = "google-java-format", version = "1.15.0")
     }
 }
 
