@@ -29,10 +29,10 @@ public class MetricsBase {
      */
     public static final String METRICS_VERSION = "3.0.1-SNAPSHOT";
 
-    private static final ScheduledExecutorService scheduler =
-            Executors.newScheduledThreadPool(1, task -> new Thread(task, "bStats-Metrics"));
     private static final String REPORT_URL = "https://bStats.org/api/v2/data/%s";
 
+    private final ScheduledExecutorService scheduler =
+            Executors.newScheduledThreadPool(1, task -> new Thread(task, "bStats-Metrics"));
     private final String platform;
     private final String serverUuid;
     private final int serviceId;
@@ -110,6 +110,10 @@ public class MetricsBase {
 
     public void addCustomChart(CustomChart chart) {
         this.customCharts.add(chart);
+    }
+
+    public void shutdown() {
+        scheduler.shutdown();
     }
 
     private void startSubmitting() {
