@@ -4,10 +4,10 @@
  *
  * IMPORTANT: You are not allowed to modify this class, except changing the package.
  *
- * Unallowed modifications include but are not limited to:
+ * Disallowed modifications include but are not limited to:
  *  - Remove the option for users to opt-out
  *  - Change the frequency for data submission
- *  - Obfuscate the code (every obfucator should allow you to make an exception for specific files)
+ *  - Obfuscate the code (every obfuscator should allow you to make an exception for specific files)
  *  - Reformat the code (if you use a linter, add an exception)
  *
  * Violations will result in a ban of your plugin and account from bStats.
@@ -202,6 +202,11 @@ public class Metrics {
     logResponseStatusText = node.node("logResponseStatusText").getBoolean(false);
   }
 
+  /** Shuts down the underlying scheduler service. */
+  public void shutdown() {
+    metricsBase.shutdown();
+  }
+
   /**
    * Adds a custom chart.
    *
@@ -232,12 +237,12 @@ public class Metrics {
   public static class MetricsBase {
 
     /** The version of the Metrics class. */
-    public static final String METRICS_VERSION = "3.0.0";
-
-    private static final ScheduledExecutorService scheduler =
-        Executors.newScheduledThreadPool(1, task -> new Thread(task, "bStats-Metrics"));
+    public static final String METRICS_VERSION = "3.0.1";
 
     private static final String REPORT_URL = "https://bStats.org/api/v2/data/%s";
+
+    private final ScheduledExecutorService scheduler =
+        Executors.newScheduledThreadPool(1, task -> new Thread(task, "bStats-Metrics"));
 
     private final String platform;
 
@@ -324,6 +329,10 @@ public class Metrics {
 
     public void addCustomChart(CustomChart chart) {
       this.customCharts.add(chart);
+    }
+
+    public void shutdown() {
+      scheduler.shutdown();
     }
 
     private void startSubmitting() {
@@ -454,130 +463,6 @@ public class Metrics {
     }
   }
 
-  public static class DrilldownPie extends CustomChart {
-
-    private final Callable<Map<String, Map<String, Integer>>> callable;
-
-    /**
-     * Class constructor.
-     *
-     * @param chartId The id of the chart.
-     * @param callable The callable which is used to request the chart data.
-     */
-    public DrilldownPie(String chartId, Callable<Map<String, Map<String, Integer>>> callable) {
-      super(chartId);
-      this.callable = callable;
-    }
-
-    @Override
-    public JsonObjectBuilder.JsonObject getChartData() throws Exception {
-      JsonObjectBuilder valuesBuilder = new JsonObjectBuilder();
-      Map<String, Map<String, Integer>> map = callable.call();
-      if (map == null || map.isEmpty()) {
-        // Null = skip the chart
-        return null;
-      }
-      boolean reallyAllSkipped = true;
-      for (Map.Entry<String, Map<String, Integer>> entryValues : map.entrySet()) {
-        JsonObjectBuilder valueBuilder = new JsonObjectBuilder();
-        boolean allSkipped = true;
-        for (Map.Entry<String, Integer> valueEntry : map.get(entryValues.getKey()).entrySet()) {
-          valueBuilder.appendField(valueEntry.getKey(), valueEntry.getValue());
-          allSkipped = false;
-        }
-        if (!allSkipped) {
-          reallyAllSkipped = false;
-          valuesBuilder.appendField(entryValues.getKey(), valueBuilder.build());
-        }
-      }
-      if (reallyAllSkipped) {
-        // Null = skip the chart
-        return null;
-      }
-      return new JsonObjectBuilder().appendField("values", valuesBuilder.build()).build();
-    }
-  }
-
-  public static class AdvancedPie extends CustomChart {
-
-    private final Callable<Map<String, Integer>> callable;
-
-    /**
-     * Class constructor.
-     *
-     * @param chartId The id of the chart.
-     * @param callable The callable which is used to request the chart data.
-     */
-    public AdvancedPie(String chartId, Callable<Map<String, Integer>> callable) {
-      super(chartId);
-      this.callable = callable;
-    }
-
-    @Override
-    protected JsonObjectBuilder.JsonObject getChartData() throws Exception {
-      JsonObjectBuilder valuesBuilder = new JsonObjectBuilder();
-      Map<String, Integer> map = callable.call();
-      if (map == null || map.isEmpty()) {
-        // Null = skip the chart
-        return null;
-      }
-      boolean allSkipped = true;
-      for (Map.Entry<String, Integer> entry : map.entrySet()) {
-        if (entry.getValue() == 0) {
-          // Skip this invalid
-          continue;
-        }
-        allSkipped = false;
-        valuesBuilder.appendField(entry.getKey(), entry.getValue());
-      }
-      if (allSkipped) {
-        // Null = skip the chart
-        return null;
-      }
-      return new JsonObjectBuilder().appendField("values", valuesBuilder.build()).build();
-    }
-  }
-
-  public static class MultiLineChart extends CustomChart {
-
-    private final Callable<Map<String, Integer>> callable;
-
-    /**
-     * Class constructor.
-     *
-     * @param chartId The id of the chart.
-     * @param callable The callable which is used to request the chart data.
-     */
-    public MultiLineChart(String chartId, Callable<Map<String, Integer>> callable) {
-      super(chartId);
-      this.callable = callable;
-    }
-
-    @Override
-    protected JsonObjectBuilder.JsonObject getChartData() throws Exception {
-      JsonObjectBuilder valuesBuilder = new JsonObjectBuilder();
-      Map<String, Integer> map = callable.call();
-      if (map == null || map.isEmpty()) {
-        // Null = skip the chart
-        return null;
-      }
-      boolean allSkipped = true;
-      for (Map.Entry<String, Integer> entry : map.entrySet()) {
-        if (entry.getValue() == 0) {
-          // Skip this invalid
-          continue;
-        }
-        allSkipped = false;
-        valuesBuilder.appendField(entry.getKey(), entry.getValue());
-      }
-      if (allSkipped) {
-        // Null = skip the chart
-        return null;
-      }
-      return new JsonObjectBuilder().appendField("values", valuesBuilder.build()).build();
-    }
-  }
-
   public static class SimpleBarChart extends CustomChart {
 
     private final Callable<Map<String, Integer>> callable;
@@ -642,9 +527,9 @@ public class Metrics {
     protected abstract JsonObjectBuilder.JsonObject getChartData() throws Exception;
   }
 
-  public static class SimplePie extends CustomChart {
+  public static class SingleLineChart extends CustomChart {
 
-    private final Callable<String> callable;
+    private final Callable<Integer> callable;
 
     /**
      * Class constructor.
@@ -652,19 +537,143 @@ public class Metrics {
      * @param chartId The id of the chart.
      * @param callable The callable which is used to request the chart data.
      */
-    public SimplePie(String chartId, Callable<String> callable) {
+    public SingleLineChart(String chartId, Callable<Integer> callable) {
       super(chartId);
       this.callable = callable;
     }
 
     @Override
     protected JsonObjectBuilder.JsonObject getChartData() throws Exception {
-      String value = callable.call();
-      if (value == null || value.isEmpty()) {
+      int value = callable.call();
+      if (value == 0) {
         // Null = skip the chart
         return null;
       }
       return new JsonObjectBuilder().appendField("value", value).build();
+    }
+  }
+
+  public static class AdvancedPie extends CustomChart {
+
+    private final Callable<Map<String, Integer>> callable;
+
+    /**
+     * Class constructor.
+     *
+     * @param chartId The id of the chart.
+     * @param callable The callable which is used to request the chart data.
+     */
+    public AdvancedPie(String chartId, Callable<Map<String, Integer>> callable) {
+      super(chartId);
+      this.callable = callable;
+    }
+
+    @Override
+    protected JsonObjectBuilder.JsonObject getChartData() throws Exception {
+      JsonObjectBuilder valuesBuilder = new JsonObjectBuilder();
+      Map<String, Integer> map = callable.call();
+      if (map == null || map.isEmpty()) {
+        // Null = skip the chart
+        return null;
+      }
+      boolean allSkipped = true;
+      for (Map.Entry<String, Integer> entry : map.entrySet()) {
+        if (entry.getValue() == 0) {
+          // Skip this invalid
+          continue;
+        }
+        allSkipped = false;
+        valuesBuilder.appendField(entry.getKey(), entry.getValue());
+      }
+      if (allSkipped) {
+        // Null = skip the chart
+        return null;
+      }
+      return new JsonObjectBuilder().appendField("values", valuesBuilder.build()).build();
+    }
+  }
+
+  public static class DrilldownPie extends CustomChart {
+
+    private final Callable<Map<String, Map<String, Integer>>> callable;
+
+    /**
+     * Class constructor.
+     *
+     * @param chartId The id of the chart.
+     * @param callable The callable which is used to request the chart data.
+     */
+    public DrilldownPie(String chartId, Callable<Map<String, Map<String, Integer>>> callable) {
+      super(chartId);
+      this.callable = callable;
+    }
+
+    @Override
+    public JsonObjectBuilder.JsonObject getChartData() throws Exception {
+      JsonObjectBuilder valuesBuilder = new JsonObjectBuilder();
+      Map<String, Map<String, Integer>> map = callable.call();
+      if (map == null || map.isEmpty()) {
+        // Null = skip the chart
+        return null;
+      }
+      boolean reallyAllSkipped = true;
+      for (Map.Entry<String, Map<String, Integer>> entryValues : map.entrySet()) {
+        JsonObjectBuilder valueBuilder = new JsonObjectBuilder();
+        boolean allSkipped = true;
+        for (Map.Entry<String, Integer> valueEntry : map.get(entryValues.getKey()).entrySet()) {
+          valueBuilder.appendField(valueEntry.getKey(), valueEntry.getValue());
+          allSkipped = false;
+        }
+        if (!allSkipped) {
+          reallyAllSkipped = false;
+          valuesBuilder.appendField(entryValues.getKey(), valueBuilder.build());
+        }
+      }
+      if (reallyAllSkipped) {
+        // Null = skip the chart
+        return null;
+      }
+      return new JsonObjectBuilder().appendField("values", valuesBuilder.build()).build();
+    }
+  }
+
+  public static class MultiLineChart extends CustomChart {
+
+    private final Callable<Map<String, Integer>> callable;
+
+    /**
+     * Class constructor.
+     *
+     * @param chartId The id of the chart.
+     * @param callable The callable which is used to request the chart data.
+     */
+    public MultiLineChart(String chartId, Callable<Map<String, Integer>> callable) {
+      super(chartId);
+      this.callable = callable;
+    }
+
+    @Override
+    protected JsonObjectBuilder.JsonObject getChartData() throws Exception {
+      JsonObjectBuilder valuesBuilder = new JsonObjectBuilder();
+      Map<String, Integer> map = callable.call();
+      if (map == null || map.isEmpty()) {
+        // Null = skip the chart
+        return null;
+      }
+      boolean allSkipped = true;
+      for (Map.Entry<String, Integer> entry : map.entrySet()) {
+        if (entry.getValue() == 0) {
+          // Skip this invalid
+          continue;
+        }
+        allSkipped = false;
+        valuesBuilder.appendField(entry.getKey(), entry.getValue());
+      }
+      if (allSkipped) {
+        // Null = skip the chart
+        return null;
+      }
+      return new JsonObjectBuilder().appendField("values", valuesBuilder.build()).build();
     }
   }
 
@@ -708,9 +717,9 @@ public class Metrics {
     }
   }
 
-  public static class SingleLineChart extends CustomChart {
+  public static class SimplePie extends CustomChart {
 
-    private final Callable<Integer> callable;
+    private final Callable<String> callable;
 
     /**
      * Class constructor.
@@ -718,15 +727,15 @@ public class Metrics {
      * @param chartId The id of the chart.
      * @param callable The callable which is used to request the chart data.
      */
-    public SingleLineChart(String chartId, Callable<Integer> callable) {
+    public SimplePie(String chartId, Callable<String> callable) {
       super(chartId);
       this.callable = callable;
     }
 
     @Override
     protected JsonObjectBuilder.JsonObject getChartData() throws Exception {
-      int value = callable.call();
-      if (value == 0) {
+      String value = callable.call();
+      if (value == null || value.isEmpty()) {
         // Null = skip the chart
         return null;
       }
