@@ -81,6 +81,13 @@ public class Metrics {
     }
 
     /**
+     * Shuts down the underlying scheduler service.
+     */
+    public void shutdown() {
+        metricsBase.shutdown();
+    }
+
+    /**
      * Adds a custom chart.
      *
      * @param chart The chart to add.
