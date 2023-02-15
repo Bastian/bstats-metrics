@@ -10,7 +10,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("org.bukkit:bukkit:1.8.3-R0.1-SNAPSHOT")
+    compileOnly("org.bukkit:bukkit:1.8.8-R0.1-SNAPSHOT")
     api(project(":base")) {
         isTransitive = true
     }
@@ -21,8 +21,9 @@ tasks.withType<Test> {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(8))
+    }
     withJavadocJar()
     withSourcesJar()
 }
