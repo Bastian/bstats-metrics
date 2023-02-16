@@ -113,7 +113,7 @@ public class MetricsBase {
     }
 
     public void shutdown() {
-        scheduler.shutdown();
+        scheduler.shutdownNow();
     }
 
     private void startSubmitting() {
