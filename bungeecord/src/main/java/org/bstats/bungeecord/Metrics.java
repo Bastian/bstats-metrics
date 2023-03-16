@@ -123,6 +123,7 @@ public class Metrics {
         builder.appendField("managedServers", plugin.getProxy().getServers().size());
         builder.appendField("onlineMode", plugin.getProxy().getConfig().isOnlineMode() ? 1 : 0);
         builder.appendField("bungeecordVersion", plugin.getProxy().getVersion());
+        builder.appendField("bungeecordName", plugin.getProxy().getName());
 
         builder.appendField("javaVersion", System.getProperty("java.version"));
         builder.appendField("osName", System.getProperty("os.name"));
