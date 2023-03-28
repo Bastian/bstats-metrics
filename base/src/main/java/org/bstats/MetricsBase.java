@@ -27,7 +27,7 @@ public class MetricsBase {
     /**
      * The version of the Metrics class.
      */
-    public static final String METRICS_VERSION = "3.0.2-SNAPSHOT";
+    public static final String METRICS_VERSION = "3.0.2";
 
     private static final String REPORT_URL = "https://bStats.org/api/v2/data/%s";
 
@@ -54,23 +54,32 @@ public class MetricsBase {
     /**
      * Creates a new MetricsBase class instance.
      *
-     * @param platform The platform of the service.
-     * @param serviceId The id of the service.
-     * @param serverUuid The server uuid.
-     * @param enabled Whether or not data sending is enabled.
-     * @param appendPlatformDataConsumer A consumer that receives a {@code JsonObjectBuilder} and appends all
-     *                                   platform-specific data.
-     * @param appendServiceDataConsumer A consumer that receives a {@code JsonObjectBuilder} and appends all
-     *                                  service-specific data.
-     * @param submitTaskConsumer A consumer that takes a runnable with the submit task.
-     *                           This can be used to delegate the data collection to a another thread to prevent
-     *                           errors caused by concurrency. Can be {@code null}.
-     * @param checkServiceEnabledSupplier A supplier to check if the service is still enabled.
-     * @param errorLogger A consumer that accepts log message and an error.
-     * @param infoLogger A consumer that accepts info log messages.
-     * @param logErrors Whether or not errors should be logged.
-     * @param logSentData Whether or not the sent data should be logged.
-     * @param logResponseStatusText Whether or not the response status text should be logged.
+     * @param platform                    The platform of the service.
+     * @param serviceId                   The id of the service.
+     * @param serverUuid                  The server uuid.
+     * @param enabled                     Whether or not data sending is enabled.
+     * @param appendPlatformDataConsumer  A consumer that receives a
+     *                                    {@code JsonObjectBuilder} and appends all
+     *                                    platform-specific data.
+     * @param appendServiceDataConsumer   A consumer that receives a
+     *                                    {@code JsonObjectBuilder} and appends all
+     *                                    service-specific data.
+     * @param submitTaskConsumer          A consumer that takes a runnable with the
+     *                                    submit task.
+     *                                    This can be used to delegate the data
+     *                                    collection to a another thread to prevent
+     *                                    errors caused by concurrency. Can be
+     *                                    {@code null}.
+     * @param checkServiceEnabledSupplier A supplier to check if the service is
+     *                                    still enabled.
+     * @param errorLogger                 A consumer that accepts log message and an
+     *                                    error.
+     * @param infoLogger                  A consumer that accepts info log messages.
+     * @param logErrors                   Whether or not errors should be logged.
+     * @param logSentData                 Whether or not the sent data should be
+     *                                    logged.
+     * @param logResponseStatusText       Whether or not the response status text
+     *                                    should be logged.
      */
     public MetricsBase(
             String platform,
@@ -85,11 +94,13 @@ public class MetricsBase {
             Consumer<String> infoLogger,
             boolean logErrors,
             boolean logSentData,
-            boolean logResponseStatusText
-    ) {
-        ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(1, task -> new Thread(task, "bStats-Metrics"));
-        // We want delayed tasks (non-periodic) that will execute in the future to be cancelled when the scheduler is shutdown.
-        // Otherwise, we risk preventing the server from shutting down even when MetricsBase#shutdown() is called
+            boolean logResponseStatusText) {
+        ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(1,
+                task -> new Thread(task, "bStats-Metrics"));
+        // We want delayed tasks (non-periodic) that will execute in the future to be
+        // cancelled when the scheduler is shutdown.
+        // Otherwise, we risk preventing the server from shutting down even when
+        // MetricsBase#shutdown() is called
         scheduler.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
         this.scheduler = scheduler;
 
@@ -109,7 +120,8 @@ public class MetricsBase {
 
         checkRelocation();
 
-        if (enabled) { // WARNING: Removing the option to opt-out will get your plugin banned from bStats
+        if (enabled) { // WARNING: Removing the option to opt-out will get your plugin banned from
+                       // bStats
             startSubmitting();
         }
     }
@@ -135,10 +147,14 @@ public class MetricsBase {
             }
         };
 
-        // Many servers tend to restart at a fixed time at xx:00 which causes an uneven distribution of requests on the
-        // bStats backend. To circumvent this problem, we introduce some randomness into the initial and second delay.
-        // WARNING: You must not modify and part of this Metrics class, including the submit delay or frequency!
-        // WARNING: Modifying this code will get your plugin banned on bStats. Just don't do it!
+        // Many servers tend to restart at a fixed time at xx:00 which causes an uneven
+        // distribution of requests on the
+        // bStats backend. To circumvent this problem, we introduce some randomness into
+        // the initial and second delay.
+        // WARNING: You must not modify and part of this Metrics class, including the
+        // submit delay or frequency!
+        // WARNING: Modifying this code will get your plugin banned on bStats. Just
+        // don't do it!
         long initialDelay = (long) (1000 * 60 * (3 + Math.random() * 3));
         long secondDelay = (long) (1000 * 60 * (Math.random() * 30));
         scheduler.schedule(submitTask, initialDelay, TimeUnit.MILLISECONDS);
@@ -220,13 +236,18 @@ public class MetricsBase {
      */
     private void checkRelocation() {
         // You can use the property to disable the check in your test environment
-        if (System.getProperty("bstats.relocatecheck") == null || !System.getProperty("bstats.relocatecheck").equals("false")) {
-            // Maven's Relocate is clever and changes strings, too. So we have to use this little "trick" ... :D
+        if (System.getProperty("bstats.relocatecheck") == null
+                || !System.getProperty("bstats.relocatecheck").equals("false")) {
+            // Maven's Relocate is clever and changes strings, too. So we have to use this
+            // little "trick" ... :D
             final String defaultPackage = new String(
-                    new byte[]{'o', 'r', 'g', '.', 'b', 's', 't', 'a', 't', 's'});
-            final String examplePackage = new String(new byte[]{'y', 'o', 'u', 'r', '.', 'p', 'a', 'c', 'k', 'a', 'g', 'e'});
-            // We want to make sure no one just copy & pastes the example and uses the wrong package names
-            if (MetricsBase.class.getPackage().getName().startsWith(defaultPackage) || MetricsBase.class.getPackage().getName().startsWith(examplePackage)) {
+                    new byte[] { 'o', 'r', 'g', '.', 'b', 's', 't', 'a', 't', 's' });
+            final String examplePackage = new String(
+                    new byte[] { 'y', 'o', 'u', 'r', '.', 'p', 'a', 'c', 'k', 'a', 'g', 'e' });
+            // We want to make sure no one just copy & pastes the example and uses the wrong
+            // package names
+            if (MetricsBase.class.getPackage().getName().startsWith(defaultPackage)
+                    || MetricsBase.class.getPackage().getName().startsWith(examplePackage)) {
                 throw new IllegalStateException("bStats Metrics class has not been relocated correctly!");
             }
         }
