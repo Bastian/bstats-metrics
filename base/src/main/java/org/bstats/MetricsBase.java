@@ -14,8 +14,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -31,8 +31,8 @@ public class MetricsBase {
 
     private static final String REPORT_URL = "https://bStats.org/api/v2/data/%s";
 
-    private final ScheduledExecutorService scheduler =
-            Executors.newScheduledThreadPool(1, task -> new Thread(task, "bStats-Metrics"));
+    private final ScheduledExecutorService scheduler;
+
     private final String platform;
     private final String serverUuid;
     private final int serviceId;
@@ -87,6 +87,12 @@ public class MetricsBase {
             boolean logSentData,
             boolean logResponseStatusText
     ) {
+        ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(1, task -> new Thread(task, "bStats-Metrics"));
+        // We want delayed tasks (non-periodic) that will execute in the future to be cancelled when the scheduler is shutdown.
+        // Otherwise, we risk preventing the server from shutting down even when MetricsBase#shutdown() is called
+        scheduler.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+        this.scheduler = scheduler;
+
         this.platform = platform;
         this.serverUuid = serverUuid;
         this.serviceId = serviceId;
