@@ -5,12 +5,13 @@ plugins {
 repositories {
     mavenCentral()
     maven {
-        url = uri("https://nexus.velocitypowered.com/repository/maven-public/")
+        name = "papermc"
+        url = uri("https://repo.papermc.io/repository/maven-public/")
     }
 }
 
 dependencies {
-    compileOnly("com.velocitypowered:velocity-api:1.1.3")
+    compileOnly("com.velocitypowered:velocity-api:3.1.1")
     api(project(":base")) {
         isTransitive = true
     }
