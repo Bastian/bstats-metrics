@@ -96,7 +96,11 @@ public class MetricsBase {
             boolean logSentData,
             boolean logResponseStatusText) {
         ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(1,
-                task -> new Thread(task, "bStats-Metrics"));
+                task -> {
+                    Thread thread = new Thread(task, "bStats-Metrics");
+                    thread.setDaemon(true);
+                    return thread;
+                });
         // We want delayed tasks (non-periodic) that will execute in the future to be
         // cancelled when the scheduler is shutdown.
         // Otherwise, we risk preventing the server from shutting down even when
