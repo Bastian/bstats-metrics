@@ -25,7 +25,7 @@ public class RelocateCheckTest {
     }
 
     private MetricsBase createDummyMetricsBase() {
-        return new MetricsBase("", "", -1, false, null, null, null, null, null, null, true, true, true);
+        return new MetricsBase("", "", -1, false, null, null, null, null, null, null, true, true, true, false);
     }
 
 }

@@ -103,7 +103,8 @@ public class Metrics {
                 logger::info,
                 logErrors,
                 logSentData,
-                logResponseStatusText
+                logResponseStatusText,
+                false
         );
 
         StringBuilder builder = new StringBuilder().append(System.lineSeparator());

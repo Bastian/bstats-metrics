@@ -80,6 +80,8 @@ public class MetricsBase {
      *                                    logged.
      * @param logResponseStatusText       Whether or not the response status text
      *                                    should be logged.
+     * @param skipRelocateCheck           Whether or not the relocate check should be
+     *                                    skipped.
      */
     public MetricsBase(
             String platform,
@@ -94,7 +96,8 @@ public class MetricsBase {
             Consumer<String> infoLogger,
             boolean logErrors,
             boolean logSentData,
-            boolean logResponseStatusText) {
+            boolean logResponseStatusText,
+            boolean skipRelocateCheck) {
         ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(1,
                 task -> {
                     Thread thread = new Thread(task, "bStats-Metrics");
@@ -122,7 +125,9 @@ public class MetricsBase {
         this.logSentData = logSentData;
         this.logResponseStatusText = logResponseStatusText;
 
-        checkRelocation();
+        if (!skipRelocateCheck) {
+            checkRelocation();
+        }
 
         if (enabled) { // WARNING: Removing the option to opt-out will get your plugin banned from
                        // bStats

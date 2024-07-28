@@ -76,7 +76,8 @@ public class Metrics {
                 (message) -> this.plugin.getLogger().log(Level.INFO, message),
                 logErrors,
                 logSentData,
-                logResponseStatusText
+                logResponseStatusText,
+                false
         );
     }
 
