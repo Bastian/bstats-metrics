@@ -62,8 +62,14 @@ public class Metrics {
         boolean logSentData = config.getBoolean("logSentData", false);
         boolean logResponseStatusText = config.getBoolean("logResponseStatusText", false);
 
-        String minecraftVersion2 = Bukkit.getServer().getName();
-        boolean folia = (minecraftVersion2.toUpperCase().contains("FOLIA"));
+        Class clazz = null;
+
+        try {
+            clazz = Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
+        } catch (Exception e) {
+        }
+
+        boolean folia = (clazz != null);
 
         metricsBase = new MetricsBase(
                 "bukkit",
