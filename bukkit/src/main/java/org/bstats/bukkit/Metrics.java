@@ -62,14 +62,10 @@ public class Metrics {
         boolean logSentData = config.getBoolean("logSentData", false);
         boolean logResponseStatusText = config.getBoolean("logResponseStatusText", false);
 
-        Class clazz = null;
-
+        boolean isFolia = false;
         try {
-            clazz = Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
-        } catch (Exception e) {
-        }
-
-        boolean folia = (clazz != null);
+            isFolia = Class.forName("io.papermc.paper.threadedregions.RegionizedServer") != null;
+        } catch (Exception e) {}
 
         metricsBase = new MetricsBase(
                 "bukkit",
@@ -78,7 +74,8 @@ public class Metrics {
                 enabled,
                 this::appendPlatformData,
                 this::appendServiceData,
-                folia ? null : submitDataTask -> Bukkit.getScheduler().runTask(plugin, submitDataTask),
+                // See https://github.com/Bastian/bstats-metrics/pull/126
+                isFolia ? null : submitDataTask -> Bukkit.getScheduler().runTask(plugin, submitDataTask),
                 plugin::isEnabled,
                 (message, error) -> this.plugin.getLogger().log(Level.WARNING, message, error),
                 (message) -> this.plugin.getLogger().log(Level.INFO, message),
