@@ -23,7 +23,7 @@ public class Metrics {
     /**
      * Creates a new Metrics instance.
      *
-     * @param plugin Your plugin instance.
+     * @param plugin    Your plugin instance.
      * @param serviceId The id of the service.
      *                  It can be found at <a href="https://bstats.org/what-is-my-plugin-id">What is my plugin id?</a>
      */
@@ -62,6 +62,11 @@ public class Metrics {
         boolean logSentData = config.getBoolean("logSentData", false);
         boolean logResponseStatusText = config.getBoolean("logResponseStatusText", false);
 
+        boolean isFolia = false;
+        try {
+            isFolia = Class.forName("io.papermc.paper.threadedregions.RegionizedServer") != null;
+        } catch (Exception e) {}
+
         metricsBase = new MetricsBase(
                 "bukkit",
                 serverUUID,
@@ -69,7 +74,8 @@ public class Metrics {
                 enabled,
                 this::appendPlatformData,
                 this::appendServiceData,
-                submitDataTask -> Bukkit.getScheduler().runTask(plugin, submitDataTask),
+                // See https://github.com/Bastian/bstats-metrics/pull/126
+                isFolia ? null : submitDataTask -> Bukkit.getScheduler().runTask(plugin, submitDataTask),
                 plugin::isEnabled,
                 (message, error) -> this.plugin.getLogger().log(Level.WARNING, message, error),
                 (message) -> this.plugin.getLogger().log(Level.INFO, message),
@@ -78,6 +84,7 @@ public class Metrics {
                 logResponseStatusText,
                 false
         );
+
     }
 
     /**
