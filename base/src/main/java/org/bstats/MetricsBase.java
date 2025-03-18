@@ -192,7 +192,6 @@ public class MetricsBase {
 
         scheduler.execute(() -> {
             try {
-                // Send the data
                 sendData(data);
             } catch (Exception e) {
                 // Something went wrong! :(
