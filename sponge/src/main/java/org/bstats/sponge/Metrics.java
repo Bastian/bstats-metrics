@@ -147,7 +147,6 @@ public class Metrics {
             node.node("logFailedRequests").set(false);
             node.node("logSentData").set(false);
             node.node("logResponseStatusText").set(false);
-            node.node("serverUuid").set(serverUuidComment);
             node.node("configVersion").set(2);
 
             configurationLoader.save(node);
