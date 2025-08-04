@@ -107,15 +107,19 @@ public class Metrics {
                 false
         );
 
-        StringBuilder builder = new StringBuilder().append(System.lineSeparator());
-        builder.append("Plugin ").append(plugin.metadata().name().orElse(plugin.metadata().id())).append(" is using bStats Metrics ");
+        StringBuilder builder = new StringBuilder()
+                .append("Plugin ")
+                .append(plugin.metadata().name().orElse(plugin.metadata().id()))
+                .append(" uses bStats for collecting metrics");
+
         if (Sponge.metricsConfigManager().effectiveCollectionState(plugin).asBoolean()) {
-            builder.append(" and is allowed to send data.");
+            builder.append(" and is currently allowed to send data.");
         } else {
-            builder.append(" but currently has data sending disabled.").append(System.lineSeparator());
-            builder.append("To change the enabled/disabled state of any bStats use in a plugin, visit the Sponge config!");
+            builder.append(", but data collection is currently disabled.");
         }
+
         logger.info(builder.toString());
+        logger.info("To disable or enable bStats Metrics for a plugin, visit the Sponge config!");
     }
 
     /**
