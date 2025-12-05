@@ -1,7 +1,9 @@
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
-import com.github.javaparser.printer.PrettyPrinter
-import com.github.javaparser.printer.PrettyPrinterConfiguration
+import com.github.javaparser.printer.DefaultPrettyPrinter
+import com.github.javaparser.printer.configuration.DefaultPrinterConfiguration
+import com.github.javaparser.printer.configuration.DefaultPrinterConfiguration.ConfigOption
+import com.github.javaparser.printer.configuration.DefaultConfigurationOption
 import com.google.googlejavaformat.java.Formatter
 
 buildscript {
@@ -9,8 +11,8 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath(group = "com.github.javaparser", name = "javaparser-symbol-solver-core", version = "3.18.0")
-        classpath(group = "com.google.googlejavaformat", name = "google-java-format", version = "1.9")
+        classpath("com.github.javaparser:javaparser-symbol-solver-core:3.26.2")
+        classpath("com.google.googlejavaformat:google-java-format:1.24.0")
     }
 }
 
@@ -27,7 +29,7 @@ tasks.register("generateMetrics") {
  * Generates the Metrics class for the given platform.
  */
 fun generatePlatformMetricsClass(platform: String, withMetricsConfig: Boolean) =
-        file("${project(":$platform").buildDir}/generated/Metrics.java")
+        file("${project(":$platform").layout.buildDirectory.get().asFile}/generated/Metrics.java")
                 .apply { parentFile.mkdirs() }
                 .writeText(enrichPlatformMetricsClass(platform, withMetricsConfig))
 
@@ -116,9 +118,8 @@ fun convertClassToInnerClass(outer: String, inner: String, makeInnerPrivate: Boo
     // JavaParser already takes care for us, that nothing is imported twice
     innerCU.imports.forEach { outerCU.addImport(it) }
 
-    return PrettyPrinter(
-            PrettyPrinterConfiguration()
-                    .setOrderImports(true)
-                    .setEndOfLineCharacter("\n")
-    ).print(outerCU)
+    val config = DefaultPrinterConfiguration()
+            .addOption(DefaultConfigurationOption(ConfigOption.ORDER_IMPORTS, true))
+            .addOption(DefaultConfigurationOption(ConfigOption.END_OF_LINE_CHARACTER, "\n"))
+    return DefaultPrettyPrinter(config).print(outerCU)
 }
