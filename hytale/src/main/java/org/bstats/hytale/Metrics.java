@@ -91,7 +91,7 @@ public class Metrics {
     }
 
     private void appendServiceData(JsonObjectBuilder builder) {
-        builder.appendField("pluginVersion", pluginBase.getManifest().getVersion().getBuild());
+        builder.appendField("pluginVersion", pluginBase.getManifest().getVersion().toString());
     }
 
 }
