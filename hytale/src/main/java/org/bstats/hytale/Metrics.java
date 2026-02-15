@@ -1,0 +1,97 @@
+package org.bstats.hytale;
+
+import com.hypixel.hytale.common.util.java.ManifestUtil;
+import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.HytaleServer;
+import com.hypixel.hytale.server.core.plugin.PluginBase;
+import com.hypixel.hytale.server.core.plugin.PluginManager;
+import com.hypixel.hytale.server.core.universe.Universe;
+
+import org.bstats.MetricsBase;
+import org.bstats.charts.CustomChart;
+import org.bstats.config.MetricsConfig;
+import org.bstats.json.JsonObjectBuilder;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
+public class Metrics {
+
+    private final PluginBase pluginBase;
+    private MetricsBase metricsBase;
+
+    public Metrics(PluginBase pluginBase, int serviceId) {
+        this.pluginBase = pluginBase;
+        HytaleLogger logger = HytaleLogger.getLogger();
+
+        File configFile = PluginManager.MODS_PATH.resolve("bStats").resolve("config.txt").toFile();
+        MetricsConfig config;
+        try {
+            config = new MetricsConfig(configFile, true);
+        } catch (IOException e) {
+            logger.atWarning().log("Failed to create bStats config", e);
+            return;
+        }
+
+        metricsBase = new MetricsBase(
+                "hytale",
+                config.getServerUUID(),
+                serviceId,
+                config.isEnabled(),
+                this::appendPlatformData,
+                this::appendServiceData,
+                task -> HytaleServer.SCHEDULED_EXECUTOR.schedule(task, 0, TimeUnit.SECONDS),
+                () -> true,
+                (msg, throwable) -> logger.atWarning().log(msg, throwable),
+                msg -> logger.atInfo().log(msg),
+                config.isLogErrorsEnabled(),
+                config.isLogSentDataEnabled(),
+                config.isLogResponseStatusTextEnabled(),
+                false
+        );
+
+        if (!config.didExistBefore()) {
+            // Send an info message when the bStats config file gets created for the first time
+            logger.atInfo().log("Hytale and some of its plugins collect metrics and send them to bStats (https://bStats.org).");
+            logger.atInfo().log("bStats collects some basic information for plugin authors, like how many people use");
+            logger.atInfo().log("their plugin and their total player count. It's recommend to keep bStats enabled, but");
+            logger.atInfo().log("if you're not comfortable with this, you can opt-out by editing the config.txt file in");
+            logger.atInfo().log("the '/mods/bStats/' folder and setting enabled to false.");
+        }
+    }
+
+    /**
+     * Shuts down the underlying scheduler service.
+     */
+    public void shutdown() {
+        metricsBase.shutdown();
+    }
+
+    /**
+     * Adds a custom chart.
+     *
+     * @param chart The chart to add.
+     */
+    public void addCustomChart(CustomChart chart) {
+        if (metricsBase != null) {
+            metricsBase.addCustomChart(chart);
+        }
+    }
+
+    private void appendPlatformData(JsonObjectBuilder builder) {
+        builder.appendField("playerAmount", Universe.get().getPlayerCount());
+        builder.appendField("hytaleVersion", ManifestUtil.getImplementationVersion());
+
+        builder.appendField("javaVersion", System.getProperty("java.version"));
+        builder.appendField("osName", System.getProperty("os.name"));
+        builder.appendField("osArch", System.getProperty("os.arch"));
+        builder.appendField("osVersion", System.getProperty("os.version"));
+        builder.appendField("coreCount", Runtime.getRuntime().availableProcessors());
+    }
+
+    private void appendServiceData(JsonObjectBuilder builder) {
+        builder.appendField("pluginVersion", pluginBase.getManifest().getVersion().getBuild());
+    }
+
+}
