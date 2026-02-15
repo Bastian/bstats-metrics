@@ -53,7 +53,7 @@ public class Metrics {
 
         if (!config.didExistBefore()) {
             // Send an info message when the bStats config file gets created for the first time
-            logger.atInfo().log("Hytale and some of its plugins collect metrics and send them to bStats (https://bStats.org).");
+            logger.atInfo().log("some of plugins collect metrics and send them to bStats (https://bStats.org).");
             logger.atInfo().log("bStats collects some basic information for plugin authors, like how many people use");
             logger.atInfo().log("their plugin and their total player count. It's recommend to keep bStats enabled, but");
             logger.atInfo().log("if you're not comfortable with this, you can opt-out by editing the config.txt file in");
