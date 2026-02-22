@@ -2,7 +2,7 @@ package org.bstats.hytale;
 
 import com.hypixel.hytale.common.util.java.ManifestUtil;
 import com.hypixel.hytale.logger.HytaleLogger;
-import com.hypixel.hytale.server.core.HytaleServer;
+import com.hypixel.hytale.server.core.Options;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.plugin.PluginManager;
 import com.hypixel.hytale.server.core.universe.Universe;
@@ -81,6 +81,7 @@ public class Metrics {
 
     private void appendPlatformData(JsonObjectBuilder builder) {
         builder.appendField("playerAmount", Universe.get().getPlayerCount());
+        builder.appendField("authMode", Options.getOrDefault(Options.AUTH_MODE, Options.getOptionSet(), Options.AuthMode.AUTHENTICATED).name());
         builder.appendField("hytaleVersion", ManifestUtil.getImplementationVersion());
 
         builder.appendField("javaVersion", System.getProperty("java.version"));
