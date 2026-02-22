@@ -29,7 +29,7 @@ public class Metrics {
         try {
             config = new MetricsConfig(configFile, true);
         } catch (IOException e) {
-            logger.atWarning().log("Failed to create bStats config", e);
+            logger.atWarning().withCause(e).log("Failed to create bStats config");
             return;
         }
 
@@ -42,7 +42,7 @@ public class Metrics {
                 this::appendServiceData,
                 task -> HytaleServer.SCHEDULED_EXECUTOR.schedule(task, 0, TimeUnit.SECONDS),
                 () -> true,
-                (msg, throwable) -> logger.atWarning().log(msg, throwable),
+                (msg, throwable) -> logger.atWarning().withCause(throwable).log(msg),
                 msg -> logger.atInfo().log(msg),
                 config.isLogErrorsEnabled(),
                 config.isLogSentDataEnabled(),
