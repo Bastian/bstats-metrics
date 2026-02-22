@@ -17,20 +17,25 @@ import java.io.IOException;
 public class Metrics {
 
     private final PluginBase pluginBase;
+    private final HytaleLogger logger;
+    private final boolean logErrors;
     private MetricsBase metricsBase;
 
     public Metrics(PluginBase pluginBase, int serviceId) {
         this.pluginBase = pluginBase;
-        HytaleLogger logger = HytaleLogger.getLogger();
+        this.logger = HytaleLogger.getLogger();
 
         File configFile = new File("bStats.txt");
         MetricsConfig config;
         try {
             config = new MetricsConfig(configFile, true);
         } catch (IOException e) {
+            logErrors = false;
             logger.atWarning().withCause(e).log("Failed to create bStats config");
             return;
         }
+
+        logErrors = config.isLogErrorsEnabled();
 
         metricsBase = new MetricsBase(
                 "hytale",
@@ -43,7 +48,7 @@ public class Metrics {
                 () -> true,
                 (msg, throwable) -> logger.atWarning().withCause(throwable).log(msg),
                 msg -> logger.atInfo().log(msg),
-                config.isLogErrorsEnabled(),
+                logErrors,
                 config.isLogSentDataEnabled(),
                 config.isLogResponseStatusTextEnabled(),
                 false
@@ -78,9 +83,9 @@ public class Metrics {
     }
 
     private void appendPlatformData(JsonObjectBuilder builder) {
-        builder.appendField("playerAmount", Universe.get().getPlayerCount());
-        builder.appendField("authMode", Options.getOrDefault(Options.AUTH_MODE, Options.getOptionSet(), Options.AuthMode.AUTHENTICATED).name());
-        builder.appendField("hytaleVersion", ManifestUtil.getImplementationVersion());
+        tryAppend(() -> builder.appendField("playerAmount", Universe.get().getPlayerCount()));
+        tryAppend(() -> builder.appendField("authMode", Options.getOrDefault(Options.AUTH_MODE, Options.getOptionSet(), Options.AuthMode.AUTHENTICATED).name()));
+        tryAppend(() -> builder.appendField("hytaleVersion", ManifestUtil.getImplementationVersion()));
 
         builder.appendField("javaVersion", System.getProperty("java.version"));
         builder.appendField("osName", System.getProperty("os.name"));
@@ -90,7 +95,26 @@ public class Metrics {
     }
 
     private void appendServiceData(JsonObjectBuilder builder) {
-        builder.appendField("pluginVersion", pluginBase.getManifest().getVersion().toString());
+        tryAppend(() -> builder.appendField("pluginVersion", pluginBase.getManifest().getVersion().toString()));
+    }
+
+    /**
+     * Hytale is still in early access, so we want to be extra careful when
+     * using their APIs, as they might change at any time. This would be pretty
+     * bad, as it would break all plugins using bStats.
+     * <p>
+     * To mitigate this risk, we wrap all optional API calls in a try-catch
+     * block. This will not catch full renames (due to the imports), but
+     * hopefully make us more resilient at least some API changes.
+     */
+    private void tryAppend(Runnable task) {
+        try {
+            task.run();
+        } catch (Throwable e) {
+            if (logErrors) {
+                logger.atWarning().withCause(e).log("Failed to append bStats platform data");
+            }
+        }
     }
 
 }
