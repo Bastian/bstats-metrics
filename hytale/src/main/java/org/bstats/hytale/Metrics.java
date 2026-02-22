@@ -4,7 +4,6 @@ import com.hypixel.hytale.common.util.java.ManifestUtil;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.Options;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
-import com.hypixel.hytale.server.core.plugin.PluginManager;
 import com.hypixel.hytale.server.core.universe.Universe;
 
 import org.bstats.MetricsBase;
@@ -25,7 +24,7 @@ public class Metrics {
         this.pluginBase = pluginBase;
         HytaleLogger logger = HytaleLogger.getLogger();
 
-        File configFile = PluginManager.MODS_PATH.resolve("bStats").resolve("config.txt").toFile();
+        File configFile = new File("bStats.txt");
         MetricsConfig config;
         try {
             config = new MetricsConfig(configFile, true);
