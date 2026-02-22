@@ -3,6 +3,7 @@ package org.bstats.hytale;
 import com.hypixel.hytale.common.util.java.ManifestUtil;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.Options;
+import com.hypixel.hytale.server.core.auth.ServerAuthManager;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.Universe;
 
@@ -24,6 +25,10 @@ public class Metrics {
     public Metrics(PluginBase pluginBase, int serviceId) {
         this.pluginBase = pluginBase;
         this.logger = HytaleLogger.getLogger();
+
+        if (ServerAuthManager.getInstance().isSingleplayer()) {
+            throw new IllegalStateException("bStats Metrics is not supported in singleplayer mode");
+        }
 
         File configFile = new File("bStats.txt");
         MetricsConfig config;
