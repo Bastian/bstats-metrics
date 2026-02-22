@@ -13,7 +13,6 @@ import org.bstats.json.JsonObjectBuilder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 public class Metrics {
 
@@ -40,7 +39,7 @@ public class Metrics {
                 config.isEnabled(),
                 this::appendPlatformData,
                 this::appendServiceData,
-                task -> HytaleServer.SCHEDULED_EXECUTOR.schedule(task, 0, TimeUnit.SECONDS),
+                null,
                 () -> true,
                 (msg, throwable) -> logger.atWarning().withCause(throwable).log(msg),
                 msg -> logger.atInfo().log(msg),
