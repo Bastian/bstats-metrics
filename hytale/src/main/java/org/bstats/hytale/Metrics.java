@@ -27,7 +27,8 @@ public class Metrics {
         this.logger = HytaleLogger.getLogger();
 
         if (ServerAuthManager.getInstance().isSingleplayer()) {
-            throw new IllegalStateException("bStats Metrics is not supported in singleplayer mode");
+            logErrors = false;
+            return;
         }
 
         File configFile = new File("bStats.txt");
