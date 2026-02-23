@@ -27,7 +27,7 @@ public class MetricsBase {
     /**
      * The version of the Metrics class.
      */
-    public static final String METRICS_VERSION = "3.1.1-SNAPSHOT";
+    public static final String METRICS_VERSION = "3.2.0";
 
     private static final String REPORT_URL = "https://bStats.org/api/v2/data/%s";
 
