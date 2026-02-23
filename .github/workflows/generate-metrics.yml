@@ -39,10 +39,12 @@ jobs:
           mv bungeecord/build/generated/Metrics.java bungeecord/Metrics.java
           mv sponge/build/generated/Metrics.java sponge/Metrics.java
           mv velocity/build/generated/Metrics.java velocity/Metrics.java
+          mv hytale/build/generated/Metrics.java hytale/Metrics.java
           git reset
           git add bukkit/Metrics.java
           git add bungeecord/Metrics.java
           git add sponge/Metrics.java
           git add velocity/Metrics.java
+          git add hytale/Metrics.java
           git diff --quiet && git diff --staged --quiet || git commit -am "Version ${{ steps.read-version.outputs.version }}"
           git push --set-upstream origin single-file
