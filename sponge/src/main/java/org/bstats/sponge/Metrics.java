@@ -179,7 +179,9 @@ public class Metrics {
      * Shuts down the underlying scheduler service.
      */
     public void shutdown() {
-        metricsBase.shutdown();
+        if (metricsBase != null) {
+            metricsBase.shutdown();
+        }
     }
 
     /**
@@ -188,7 +190,9 @@ public class Metrics {
      * @param chart The chart to add.
      */
     public void addCustomChart(CustomChart chart) {
-        metricsBase.addCustomChart(chart);
+        if (metricsBase != null) {
+            metricsBase.addCustomChart(chart);
+        }
     }
 
     private void appendPlatformData(JsonObjectBuilder builder) {

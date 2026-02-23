@@ -99,7 +99,9 @@ public class Metrics {
      * Shuts down the underlying scheduler service.
      */
     public void shutdown() {
-        metricsBase.shutdown();
+        if (metricsBase != null) {
+            metricsBase.shutdown();
+        }
     }
 
     /**
