@@ -22,7 +22,7 @@ tasks.register("generateMetrics") {
         generatePlatformMetricsClass("bungeecord", false)
         generatePlatformMetricsClass("sponge", false)
         generatePlatformMetricsClass("velocity", true)
-        generatePlatformMetricsClass("hytale", false)
+        generatePlatformMetricsClass("hytale", true)
     }
 }
 
