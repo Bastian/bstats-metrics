@@ -48,7 +48,8 @@ public class Metrics {
                     "many people use their plugin and their total player count. It's recommended to keep bStats\n" +
                     "enabled, but if you're not comfortable with this, you can turn this setting off. There is no\n" +
                     "performance penalty associated with having metrics enabled, and data sent to bStats is fully\n" +
-                    "anonymous."
+                    "anonymous.\n" +
+                    "Learn more here: https://bstats.org/docs/server-owners"
             ).copyDefaults(true);
             try {
                 config.save(configFile);
