@@ -13,10 +13,12 @@ allprojects {
     group = "org.bstats"
 }
 
+repositories {
+    mavenCentral()
+}
+
 configure<PublishingExtension> {
     subprojects {
-        val isReleaseVersion = !version.toString().endsWith("SNAPSHOT")
-
         apply(plugin = "java-library")
         apply(plugin = "maven-publish")
         apply(plugin = "signing")
@@ -57,20 +59,6 @@ configure<PublishingExtension> {
                 }
             }
 
-            repositories {
-                maven {
-                    name = "OSSRH"
-                    url = if (isReleaseVersion) {
-                        uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/")
-                    } else {
-                        uri("https://oss.sonatype.org/content/repositories/snapshots/")
-                    }
-                    credentials {
-                        username = System.getenv("MAVEN_USERNAME")
-                        password = System.getenv("MAVEN_PASSWORD")
-                    }
-                }
-            }
         }
 
         signing {

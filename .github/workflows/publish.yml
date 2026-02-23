@@ -18,7 +18,13 @@ jobs:
           distribution: 'temurin'
           java-version: 21
       - name: Publish
-        run: ./gradlew test publish
+        run: |
+          version=$(grep "^version" gradle.properties | sed 's/.*=\s*//')
+          if [[ "$version" == *SNAPSHOT ]]; then
+            ./gradlew test publishAggregationToCentralSnapshots
+          else
+            ./gradlew test publishAggregationToCentralPortal
+          fi
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
