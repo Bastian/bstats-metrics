@@ -31,7 +31,7 @@ public class Metrics {
             return;
         }
 
-        File configFile = new File("bStats.txt");
+        File configFile = new File("bstats.txt");
         MetricsConfig config;
         try {
             config = new MetricsConfig(configFile, true);
@@ -65,7 +65,7 @@ public class Metrics {
             logger.atInfo().log("Some of your mods collect metrics and send them to bStats (https://bStats.org).");
             logger.atInfo().log("bStats collects some basic information for mod authors, like how many people use");
             logger.atInfo().log("their mod and their total player count. It's recommended to keep bStats enabled, but");
-            logger.atInfo().log("if you're not comfortable with this, you can opt-out by editing the bStats.txt file in");
+            logger.atInfo().log("if you're not comfortable with this, you can opt-out by editing the bstats.txt file in");
             logger.atInfo().log("the server root folder and setting enabled to false.");
         }
     }
