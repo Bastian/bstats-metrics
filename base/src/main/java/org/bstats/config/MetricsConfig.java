@@ -158,7 +158,10 @@ public class MetricsConfig {
      */
     private void writeFile(File file, List<String> lines) throws IOException {
         if (!file.exists()) {
-            file.getParentFile().mkdirs();
+            File parentFile = file.getParentFile();
+            if (parentFile != null) {
+                parentFile.mkdirs();
+            }
             file.createNewFile();
         }
         try (
