@@ -174,7 +174,7 @@ public class Metrics {
   public static class MetricsBase {
 
     /** The version of the Metrics class. */
-    public static final String METRICS_VERSION = "3.2.0";
+    public static final String METRICS_VERSION = "3.2.1";
 
     private static final String REPORT_URL = "https://bStats.org/api/v2/data/%s";
 

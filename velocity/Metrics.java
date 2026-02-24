@@ -181,7 +181,7 @@ public class Metrics {
   public static class MetricsBase {
 
     /** The version of the Metrics class. */
-    public static final String METRICS_VERSION = "3.2.0";
+    public static final String METRICS_VERSION = "3.2.1";
 
     private static final String REPORT_URL = "https://bStats.org/api/v2/data/%s";
 
@@ -1057,7 +1057,10 @@ public class Metrics {
      */
     private void writeFile(File file, List<String> lines) throws IOException {
       if (!file.exists()) {
-        file.getParentFile().mkdirs();
+        File parentFile = file.getParentFile();
+        if (parentFile != null) {
+          parentFile.mkdirs();
+        }
         file.createNewFile();
       }
       try (FileWriter fileWriter = new FileWriter(file);
