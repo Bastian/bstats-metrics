@@ -143,11 +143,11 @@ public class Metrics {
             configFile.createNewFile();
             node = configurationLoader.load();
 
+            node.node("enabled").set(false);
             node.node("serverUuid").set(UUID.randomUUID().toString());
             node.node("logFailedRequests").set(false);
             node.node("logSentData").set(false);
             node.node("logResponseStatusText").set(false);
-            node.node("serverUuid").set(serverUuidComment);
             node.node("configVersion").set(2);
 
             configurationLoader.save(node);
