@@ -193,10 +193,12 @@ public class MetricsBase {
         scheduler.execute(() -> {
             try {
                 sendData(data);
-            } catch (Exception e) {
-                // Something went wrong! :(
+            } catch (Throwable t) {
                 if (logErrors) {
-                    errorLogger.accept("Could not submit bStats metrics data", e);
+                    try {
+                        errorLogger.accept("Could not submit bStats metrics data", t);
+                    } catch (Throwable ignored) {
+                    }
                 }
             }
         });
