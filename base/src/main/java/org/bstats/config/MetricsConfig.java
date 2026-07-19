@@ -111,7 +111,7 @@ public class MetricsConfig {
         }
 
         enabled = getConfigValue("enabled", lines).map("true"::equals).orElse(true);
-        serverUUID = getConfigValue("server-uuid", lines).orElse(null);
+        serverUUID = getConfigValue("server-uuid", lines).orElseGet(() -> null);
         logErrors = getConfigValue("log-errors", lines).map("true"::equals).orElse(false);
         logSentData =  getConfigValue("log-sent-data", lines).map("true"::equals).orElse(false);
         logResponseStatusText =  getConfigValue("log-response-status-text", lines).map("true"::equals).orElse(false);
